@@ -1,0 +1,1 @@
+ERROR:root:Failed to load stock symbols from CSV: [Errno 2] No such file or directory: '/mnt/data/sp500_companies.csv'
