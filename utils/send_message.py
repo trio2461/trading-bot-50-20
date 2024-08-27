@@ -1,6 +1,7 @@
+from utils.settings import PHONE_NUMBER
 import subprocess
 
-def send_text_message(message, phone_number="252-571-5303"):
+def send_text_message(message, phone_number=PHONE_NUMBER):
     applescript_command = f'''
     tell application "Messages"
         set targetService to 1st service whose service type = iMessage
@@ -10,5 +11,3 @@ def send_text_message(message, phone_number="252-571-5303"):
     '''
     subprocess.run(['osascript', '-e', applescript_command])
 
-# Example usage:
-send_text_message("Test message from Python!")

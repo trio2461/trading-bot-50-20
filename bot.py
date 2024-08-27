@@ -1,5 +1,5 @@
 from utils.api import login_to_robinhood, get_top_movers, fetch_historical_data, load_csv_data, sanitize_ticker_symbols, get_portfolio_size
-from utils.trading import analyze_stock
+from utils.trading import analyze_stock, send_trade_summary
 from utils.trade_state import fetch_open_orders, calculate_current_risk, get_open_trades, TradeState
 from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE, MAX_DAILY_LOSS, USE_CSV_DATA, USE_NASDAQ_DATA, USE_SP500_DATA, ATR_THRESHOLDS
 from termcolor import colored  # Import termcolor for colored output
@@ -67,6 +67,8 @@ def main():
 
     # Select the top three trades
     top_trades = [trade for trade in results if trade['Eligible for Trade']][:3]
+
+    send_trade_summary(top_trades, portfolio_size, current_risk)
 
     print(colored("\n--- Summary of Top Three Bullish Crossover Trades ---", 'yellow'))
     for result in top_trades:
