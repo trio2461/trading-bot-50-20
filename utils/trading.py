@@ -1,8 +1,8 @@
-# utils/trading.py
 from utils.analysis import moving_average, calculate_atr, detect_recent_crossover, check_recent_crossovers
 from utils.api import fetch_historical_data, order_buy_market
-from utils.settings import SIMULATED, MAX_DAILY_LOSS, ATR_THRESHOLDS, PHONE_NUMBER  # Corrected import
-from utils.send_message import send_text_message 
+from utils.settings import SIMULATED, MAX_DAILY_LOSS, ATR_THRESHOLDS, PHONE_NUMBER
+from utils.send_message import send_text_message
+from utils.trade_state import TradeState, fetch_open_orders, calculate_current_risk, get_open_trades
 from termcolor import colored  # Import termcolor for colored output
 
 def is_market_open():
@@ -104,9 +104,13 @@ def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULA
 
     return trade_made  # Return whether a trade was actually made
 
-def send_trade_summary(top_trades, portfolio_size, current_risk):
+def send_trade_summary(top_trades, portfolio_size, current_risk, open_trades, simulated=SIMULATED):
     summary_message = "\n--- Trade Summary ---\n"
     
+    # Indicate if the trades are simulated or live
+    mode = "SIMULATED" if simulated else "LIVE"
+    summary_message += f"Mode: {mode}\n\n"
+
     for trade in top_trades:
         summary_message += f"Stock: {trade['Stock']}\n"
         summary_message += f"Trade Made: {trade['Trade Made']}\n"
@@ -120,8 +124,33 @@ def send_trade_summary(top_trades, portfolio_size, current_risk):
     
     summary_message += f"\nPortfolio Size: ${portfolio_size:.2f}\n"
     summary_message += f"Current Risk: ${current_risk:.2f}\n"
-    
+
+    # Adding details of open trades
+    summary_message += "\n--- Open Trades ---\n"
+    for trade in open_trades:
+        summary_message += f"Symbol: {trade.symbol}\n"
+        summary_message += f"Quantity: {trade.quantity}\n"
+        summary_message += f"Price: ${trade.price:.2f}\n"
+        summary_message += f"Risk: {trade.risk}\n"
+        summary_message += f"Side: {trade.side.capitalize()}\n"
+        summary_message += "\n"  # Adding a blank line between each trade
+
     send_text_message(summary_message, phone_number=PHONE_NUMBER)
+
+
+# # utils/trading.py
+# from utils.analysis import moving_average, calculate_atr, detect_recent_crossover, check_recent_crossovers
+# from utils.api import fetch_historical_data, order_buy_market
+# from utils.settings import SIMULATED, MAX_DAILY_LOSS, ATR_THRESHOLDS, PHONE_NUMBER  # Corrected import
+# from utils.send_message import send_text_message 
+# from termcolor import colored  # Import termcolor for colored output
+
+# def is_market_open():
+#     from datetime import datetime, time
+#     now = datetime.now().time()
+#     market_open = time(9, 30)
+#     market_close = time(16, 0)
+#     return market_open <= now <= market_close
 
 # def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULATED, atr_thresholds=ATR_THRESHOLDS):
 #     print(f"\n--- Analyzing {stock} ---")
@@ -178,7 +207,7 @@ def send_trade_summary(top_trades, portfolio_size, current_risk):
 #         print(f"{stock} skipped due to ATR not within the acceptable range ({atr_thresholds}).")
 #         return False
 
-#     if potential_loss > portfolio_size * 0.02 or current_risk + potential_loss > MAX_DAILY_LOSS * portfolio_size:  # Updated variable name
+#     if potential_loss > portfolio_size * 0.02 or current_risk + potential_loss > MAX_DAILY_LOSS * portfolio_size:
 #         print(f"Skipping {stock} due to risk exceeding limits.")
 #         return False
     
@@ -214,4 +243,22 @@ def send_trade_summary(top_trades, portfolio_size, current_risk):
 #     })
 
 #     return trade_made  # Return whether a trade was actually made
- 
+
+# def send_trade_summary(top_trades, portfolio_size, current_risk):
+#     summary_message = "\n--- Trade Summary ---\n"
+    
+#     for trade in top_trades:
+#         summary_message += f"Stock: {trade['Stock']}\n"
+#         summary_message += f"Trade Made: {trade['Trade Made']}\n"
+#         summary_message += f"Trade Amount: ${trade['Trade Amount']:.2f}\n"
+#         summary_message += f"Shares to Purchase: {trade['Shares to Purchase']:.2f} shares\n"
+#         summary_message += f"Potential Gain: ${trade['Potential Gain']:.2f}\n"
+#         summary_message += f"Risk Percent: {trade['Risk Percent']:.2f}%\n"
+#         summary_message += f"Risk Dollar: ${trade['Risk Dollar']:.2f}\n"
+#         summary_message += f"ATR: {trade['ATR']:.2f}%\n"
+#         summary_message += "\n"  # Adding a blank line between each trade
+    
+#     summary_message += f"\nPortfolio Size: ${portfolio_size:.2f}\n"
+#     summary_message += f"Current Risk: ${current_risk:.2f}\n"
+    
+#     send_text_message(summary_message, phone_number=PHONE_NUMBER)

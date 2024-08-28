@@ -1,3 +1,4 @@
+# bot.py
 from utils.api import login_to_robinhood, get_top_movers, fetch_historical_data, load_csv_data, sanitize_ticker_symbols, get_portfolio_size
 from utils.trading import analyze_stock, send_trade_summary
 from utils.trade_state import fetch_open_orders, calculate_current_risk, get_open_trades, TradeState
@@ -56,6 +57,12 @@ def main():
         
         total_stocks_analyzed += 1
 
+    # Fetch and display current open trades
+    openTrades = get_open_trades(open_orders)
+    print(colored("\n--- Open Trades ---", 'magenta'))
+    for trade in openTrades:
+        print(trade)
+
     # List all trades that met the criteria
     print(colored("\n--- All Valid Trade Opportunities ---", 'cyan'))
     for result in results:
@@ -68,17 +75,12 @@ def main():
     # Select the top three trades
     top_trades = [trade for trade in results if trade['Eligible for Trade']][:3]
 
-    send_trade_summary(top_trades, portfolio_size, current_risk)
+    # Send the summary message with open trades info
+    send_trade_summary(top_trades, portfolio_size, current_risk, openTrades)
 
     print(colored("\n--- Summary of Top Three Bullish Crossover Trades ---", 'yellow'))
     for result in top_trades:
         print(f"{result['Stock']}: {colored('Eligible for Trade:', 'blue')} {result['Eligible for Trade']}, {colored('Trade Made:', 'blue')} {result['Trade Made']}, Trade Amount: ${result['Trade Amount']:.2f}, Shares to Purchase: {result['Shares to Purchase']:.2f} shares, Potential Gain: ${result['Potential Gain']:.2f}, Risk: {result['Risk Percent']:.2f}% (${result['Risk Dollar']:.2f}), ATR: {result['ATR']:.2f} ({result['ATR Percent']:.2f}%), Reason: {result['Reason']}")
-
-    # Fetch and display current open trades
-    openTrades = get_open_trades(open_orders)
-    print(colored("\n--- Open Trades ---", 'magenta'))
-    for trade in openTrades:
-        print(trade)
 
     # Calculate and display current risk after final trades
     current_risk = calculate_current_risk(open_orders)
@@ -93,22 +95,22 @@ if __name__ == "__main__":
 
 
 # from utils.api import login_to_robinhood, get_top_movers, fetch_historical_data, load_csv_data, sanitize_ticker_symbols, get_portfolio_size
-# from utils.trading import analyze_stock
+# from utils.trading import analyze_stock, send_trade_summary
 # from utils.trade_state import fetch_open_orders, calculate_current_risk, get_open_trades, TradeState
+# from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE, MAX_DAILY_LOSS, USE_CSV_DATA, USE_NASDAQ_DATA, USE_SP500_DATA, ATR_THRESHOLDS
 # from termcolor import colored  # Import termcolor for colored output
-
 
 # def main():
 #     login_to_robinhood()
-#     simulated = True  # Set this to False when going live
-#     portfolio_size = get_portfolio_size(simulated)
-#     max_daily_loss = portfolio_size * 0.06  # Set the max daily loss to 6% of the portfolio
+#     simulated = SIMULATED  # Use setting from settings.py
+#     portfolio_size = get_portfolio_size(simulated, simulated_size=SIMULATED_PORTFOLIO_SIZE)
+#     max_daily_loss = portfolio_size * MAX_DAILY_LOSS  # Use setting from settings.py
 #     current_risk = 0  # Track the current risk as trades are made
     
 #     # Boolean options to control the data source
-#     use_csv_data = True  # Set to True to use CSV data; False to use top movers
-#     use_nasdaq_data = False  # Set to True to use NASDAQ data only
-#     use_sp500_data = True  # Set to True to use S&P 500 data only
+#     use_csv_data = USE_CSV_DATA  # Use setting from settings.py
+#     use_nasdaq_data = USE_NASDAQ_DATA  # Use setting from settings.py
+#     use_sp500_data = USE_SP500_DATA  # Use setting from settings.py
 
 #     stock_symbols = []
 
@@ -140,7 +142,7 @@ if __name__ == "__main__":
 
 #     # Analyze all stocks and collect valid trades
 #     for stock in stock_symbols:
-#         trade_made = analyze_stock(stock, results, portfolio_size, current_risk, atr_thresholds=(3.0, 4.0, 5.0), simulated=simulated)
+#         trade_made = analyze_stock(stock, results, portfolio_size, current_risk, atr_thresholds=ATR_THRESHOLDS, simulated=simulated)
         
 #         if trade_made:
 #             total_trades_made += 1
@@ -161,6 +163,8 @@ if __name__ == "__main__":
 
 #     # Select the top three trades
 #     top_trades = [trade for trade in results if trade['Eligible for Trade']][:3]
+
+#     send_trade_summary(top_trades, portfolio_size, current_risk)
 
 #     print(colored("\n--- Summary of Top Three Bullish Crossover Trades ---", 'yellow'))
 #     for result in top_trades:
@@ -183,4 +187,4 @@ if __name__ == "__main__":
 # if __name__ == "__main__":
 #     main()
 
- 
+
