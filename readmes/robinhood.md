@@ -1,4 +1,6 @@
-cmmd + shift + v to view
+I'll update the README to reflect the changes, ensuring that the section on setting up and verifying environment variables for storing Robinhood credentials securely is removed from the `robinhood.md` file. Here is the updated README:
+
+---
 
 ### README: **Using `robin_stocks` for Automated Trading on Robinhood**
 
@@ -28,17 +30,19 @@ import robin_stocks.robinhood as r
 
 ### **3. Logging in to Robinhood**
 
-Before you can execute any trades, you must log in to your Robinhood account. You can log in using your username and password, or with a two-factor authentication (2FA) code if you have it enabled.
+To log in to your Robinhood account, you can use the following function:
 
 ```python
-# Basic login
-r.login(username="your_username", password="your_password")
+import os
+import robin_stocks.robinhood as r
 
-# Login with 2FA (if enabled)
-r.login(username="your_username", password="your_password", mfa_code="your_2fa_code")
+def login_to_robinhood():
+    username = os.getenv('ROBINHOOD_USERNAME')
+    password = os.getenv('ROBINHOOD_PASSWORD')
+    r.login(username=username, password=password)
 ```
 
-**Security Note**: It's advisable to store your credentials securely and not hard-code them in your script.
+**Security Note**: The above method ensures that your credentials are not exposed in your codebase.
 
 ---
 
@@ -90,8 +94,8 @@ print(order)
 
 **Parameters**:
 
--   **symbol**: The ticker symbol of the stock (e.g., "AAPL" for Apple).
--   **quantity**: The number of shares you want to buy or sell.
+- **symbol**: The ticker symbol of the stock (e.g., "AAPL" for Apple).
+- **quantity**: The number of shares you want to buy or sell.
 
 ---
 
@@ -130,7 +134,7 @@ import robin_stocks.robinhood as r
 
 def main():
     # Login
-    r.login(username="your_username", password="your_password", mfa_code="your_2fa_code")
+    r.login(username=os.getenv('ROBINHOOD_USERNAME'), password=os.getenv('ROBINHOOD_PASSWORD'))
 
     # Check buying power
     account_info = r.profiles.load_account_profile()
@@ -157,11 +161,15 @@ For more detailed documentation and advanced features, refer to the official [ro
 
 ### **11. Best Practices and Security**
 
--   **Two-Factor Authentication**: Always enable 2FA on your Robinhood account for added security.
--   **Environment Variables**: Store your credentials as environment variables or use a secure credentials manager.
--   **Error Handling**: Implement robust error handling, especially when placing trades to avoid unintended actions.
--   **Simulation Mode**: Always test your scripts thoroughly in a simulated environment before going live.
+- **Two-Factor Authentication**: Always enable 2FA on your Robinhood account for added security.
+- **Environment Variables**: Store your credentials as environment variables or use a secure credentials manager.
+- **Error Handling**: Implement robust error handling, especially when placing trades to avoid unintended actions.
+- **Simulation Mode**: Always test your scripts thoroughly in a simulated environment before going live.
 
 ---
 
 This README should provide you with the foundational knowledge needed to start automating your trades on Robinhood using the `robin_stocks` library. Always ensure that your scripts are secure and thoroughly tested before executing live trades.
+
+---
+
+Would you like to make any other modifications or add any specific instructions?
