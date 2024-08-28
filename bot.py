@@ -1,4 +1,5 @@
 # bot.py
+
 from utils.api import login_to_robinhood, get_top_movers, fetch_historical_data, load_csv_data, sanitize_ticker_symbols, get_portfolio_size
 from utils.trading import analyze_stock, send_trade_summary
 from utils.trade_state import fetch_open_orders, calculate_current_risk, get_open_trades, TradeState
@@ -80,7 +81,8 @@ def main():
 
     print(colored("\n--- Summary of Top Three Bullish Crossover Trades ---", 'yellow'))
     for result in top_trades:
-        print(f"{result['Stock']}: {colored('Eligible for Trade:', 'blue')} {result['Eligible for Trade']}, {colored('Trade Made:', 'blue')} {result['Trade Made']}, Trade Amount: ${result['Trade Amount']:.2f}, Shares to Purchase: {result['Shares to Purchase']:.2f} shares, Potential Gain: ${result['Potential Gain']:.2f}, Risk: {result['Risk Percent']:.2f}% (${result['Risk Dollar']:.2f}), ATR: {result['ATR']:.2f} ({result['ATR Percent']:.2f}%), Reason: {result['Reason']}")
+        # Include ATR * 2 in the summary
+        print(f"{result['Stock']}: {colored('Eligible for Trade:', 'blue')} {result['Eligible for Trade']}, {colored('Trade Made:', 'blue')} {result['Trade Made']}, Trade Amount: ${result['Trade Amount']:.2f}, Shares to Purchase: {result['Shares to Purchase']:.2f} shares, Potential Gain: ${result['Potential Gain']:.2f}, Risk: {result['Risk Percent']:.2f}% (${result['Risk Dollar']:.2f}), ATR: {result['ATR']:.2f} ({result['ATR Percent']:.2f}%), ATR * 2: {result['ATR * 2']:.2f}%, Reason: {result['Reason']}")
 
     # Calculate and display current risk after final trades
     current_risk = calculate_current_risk(open_orders)
@@ -92,7 +94,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 # from utils.api import login_to_robinhood, get_top_movers, fetch_historical_data, load_csv_data, sanitize_ticker_symbols, get_portfolio_size
 # from utils.trading import analyze_stock, send_trade_summary
@@ -152,6 +153,12 @@ if __name__ == "__main__":
         
 #         total_stocks_analyzed += 1
 
+#     # Fetch and display current open trades
+#     openTrades = get_open_trades(open_orders)
+#     print(colored("\n--- Open Trades ---", 'magenta'))
+#     for trade in openTrades:
+#         print(trade)
+
 #     # List all trades that met the criteria
 #     print(colored("\n--- All Valid Trade Opportunities ---", 'cyan'))
 #     for result in results:
@@ -164,17 +171,12 @@ if __name__ == "__main__":
 #     # Select the top three trades
 #     top_trades = [trade for trade in results if trade['Eligible for Trade']][:3]
 
-#     send_trade_summary(top_trades, portfolio_size, current_risk)
+#     # Send the summary message with open trades info
+#     send_trade_summary(top_trades, portfolio_size, current_risk, openTrades)
 
 #     print(colored("\n--- Summary of Top Three Bullish Crossover Trades ---", 'yellow'))
 #     for result in top_trades:
 #         print(f"{result['Stock']}: {colored('Eligible for Trade:', 'blue')} {result['Eligible for Trade']}, {colored('Trade Made:', 'blue')} {result['Trade Made']}, Trade Amount: ${result['Trade Amount']:.2f}, Shares to Purchase: {result['Shares to Purchase']:.2f} shares, Potential Gain: ${result['Potential Gain']:.2f}, Risk: {result['Risk Percent']:.2f}% (${result['Risk Dollar']:.2f}), ATR: {result['ATR']:.2f} ({result['ATR Percent']:.2f}%), Reason: {result['Reason']}")
-
-#     # Fetch and display current open trades
-#     openTrades = get_open_trades(open_orders)
-#     print(colored("\n--- Open Trades ---", 'magenta'))
-#     for trade in openTrades:
-#         print(trade)
 
 #     # Calculate and display current risk after final trades
 #     current_risk = calculate_current_risk(open_orders)
@@ -186,5 +188,3 @@ if __name__ == "__main__":
 
 # if __name__ == "__main__":
 #     main()
-
-
