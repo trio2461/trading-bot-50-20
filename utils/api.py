@@ -13,9 +13,10 @@ def login_to_robinhood():
 def order_buy_market(symbol, quantity):
     try:
         order = r.orders.order_buy_market(symbol, quantity)
-        return order
+        order_id = order.get('id')  # Extract the order ID from the response
+        return order_id
     except Exception as e:
-        print(f"Error placing market order for {symbol}: {e}")
+        print(f"Error placing market order: {e}")
         return None
 
 def fetch_historical_data(stock, interval='day', span='3month'):
