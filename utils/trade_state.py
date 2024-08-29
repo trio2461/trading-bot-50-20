@@ -1,8 +1,6 @@
 # utils/trade_state.py
 import robin_stocks.robinhood as r
 
-
-
 class TradeState:
     def __init__(self, symbol, quantity, price, order_id, side):
         self.symbol = symbol
