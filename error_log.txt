@@ -1,1 +1,1508 @@
 ERROR:root:Failed to load stock symbols from CSV: [Errno 2] No such file or directory: '/mnt/data/sp500_companies.csv'
+
+--- Analyzing AAPL ---
+AAPL skipped due to ATR percent being less than 3% (2.08%).
+
+--- Analyzing MSFT ---
+MSFT skipped due to ATR percent being less than 3% (1.85%).
+
+--- Analyzing NVDA ---
+
+--- Analyzing GOOGL ---
+GOOGL skipped due to ATR percent being less than 3% (2.31%).
+
+--- Analyzing GOOG ---
+GOOG skipped due to ATR percent being less than 3% (2.28%).
+
+--- Analyzing AMZN ---
+AMZN skipped due to ATR percent being less than 3% (2.71%).
+
+--- Analyzing META ---
+META skipped due to ATR percent being less than 3% (2.68%).
+
+--- Analyzing BRKB ---
+404 Client Error: Not Found for url: https://api.robinhood.com/quotes/historicals/?symbols=BRKB&interval=day&span=3month&bounds=regular
+Not enough data for BRKB. Skipping...
+
+--- Analyzing LLY ---
+LLY skipped due to ATR percent being less than 3% (2.76%).
+
+--- Analyzing AVGO ---
+
+--- Analyzing TSLA ---
+
+--- Analyzing JPM ---
+JPM skipped due to ATR percent being less than 3% (1.55%).
+
+--- Analyzing WMT ---
+WMT skipped due to ATR percent being less than 3% (1.47%).
+
+--- Analyzing UNH ---
+UNH skipped due to ATR percent being less than 3% (1.70%).
+
+--- Analyzing V ---
+V skipped due to ATR percent being less than 3% (1.44%).
+
+--- Analyzing XOM ---
+XOM skipped due to ATR percent being less than 3% (1.82%).
+
+--- Analyzing MA ---
+MA skipped due to ATR percent being less than 3% (1.50%).
+
+--- Analyzing PG ---
+PG skipped due to ATR percent being less than 3% (1.49%).
+
+--- Analyzing JNJ ---
+JNJ skipped due to ATR percent being less than 3% (1.37%).
+
+--- Analyzing COST ---
+COST skipped due to ATR percent being less than 3% (1.89%).
+
+--- Analyzing ORCL ---
+ORCL skipped due to ATR percent being less than 3% (1.90%).
+
+--- Analyzing HD ---
+HD skipped due to ATR percent being less than 3% (2.00%).
+
+--- Analyzing ABBV ---
+ABBV skipped due to ATR percent being less than 3% (1.62%).
+
+--- Analyzing BAC ---
+BAC skipped due to ATR percent being less than 3% (2.05%).
+
+--- Analyzing KO ---
+KO skipped due to ATR percent being less than 3% (1.22%).
+
+--- Analyzing NFLX ---
+NFLX skipped due to ATR percent being less than 3% (2.40%).
+
+--- Analyzing MRK ---
+MRK skipped due to ATR percent being less than 3% (1.76%).
+
+--- Analyzing CVX ---
+CVX skipped due to ATR percent being less than 3% (1.83%).
+
+--- Analyzing CRM ---
+CRM skipped due to ATR percent being less than 3% (2.74%).
+
+--- Analyzing ADBE ---
+ADBE skipped due to ATR percent being less than 3% (2.22%).
+
+--- Analyzing AMD ---
+
+--- Analyzing PEP ---
+PEP skipped due to ATR percent being less than 3% (1.49%).
+
+--- Analyzing TMO ---
+TMO skipped due to ATR percent being less than 3% (1.67%).
+
+--- Analyzing TMUS ---
+TMUS skipped due to ATR percent being less than 3% (1.62%).
+
+--- Analyzing LIN ---
+LIN skipped due to ATR percent being less than 3% (1.21%).
+
+--- Analyzing MCD ---
+MCD skipped due to ATR percent being less than 3% (1.65%).
+
+--- Analyzing ACN ---
+ACN skipped due to ATR percent being less than 3% (1.69%).
+
+--- Analyzing CSCO ---
+CSCO skipped due to ATR percent being less than 3% (1.88%).
+
+--- Analyzing ABT ---
+ABT skipped due to ATR percent being less than 3% (1.51%).
+
+--- Analyzing DHR ---
+DHR skipped due to ATR percent being less than 3% (1.69%).
+
+--- Analyzing WFC ---
+WFC skipped due to ATR percent being less than 3% (2.16%).
+
+--- Analyzing QCOM ---
+
+--- Analyzing PM ---
+PM skipped due to ATR percent being less than 3% (1.19%).
+
+--- Analyzing TXN ---
+TXN skipped due to ATR percent being less than 3% (2.58%).
+
+--- Analyzing INTU ---
+INTU skipped due to ATR percent being less than 3% (2.72%).
+
+--- Analyzing GE ---
+GE skipped due to ATR percent being less than 3% (2.16%).
+
+--- Analyzing IBM ---
+IBM skipped due to ATR percent being less than 3% (1.54%).
+
+--- Analyzing AXP ---
+AXP skipped due to ATR percent being less than 3% (1.98%).
+
+--- Analyzing AMGN ---
+AMGN skipped due to ATR percent being less than 3% (1.90%).
+
+--- Analyzing ISRG ---
+ISRG skipped due to ATR percent being less than 3% (1.97%).
+
+--- Analyzing VZ ---
+VZ skipped due to ATR percent being less than 3% (1.44%).
+
+--- Analyzing NOW ---
+NOW skipped due to ATR percent being less than 3% (2.58%).
+
+--- Analyzing CAT ---
+CAT skipped due to ATR percent being less than 3% (2.12%).
+
+--- Analyzing AMAT ---
+
+--- Analyzing BX ---
+BX skipped due to ATR percent being less than 3% (2.44%).
+
+--- Analyzing PFE ---
+PFE skipped due to ATR percent being less than 3% (1.93%).
+
+--- Analyzing DIS ---
+DIS skipped due to ATR percent being less than 3% (1.84%).
+
+--- Analyzing MS ---
+MS skipped due to ATR percent being less than 3% (1.80%).
+
+--- Analyzing NEE ---
+NEE skipped due to ATR percent being less than 3% (1.80%).
+
+--- Analyzing GS ---
+GS skipped due to ATR percent being less than 3% (2.05%).
+
+--- Analyzing RTX ---
+RTX skipped due to ATR percent being less than 3% (1.37%).
+
+--- Analyzing SPGI ---
+SPGI skipped due to ATR percent being less than 3% (1.41%).
+
+--- Analyzing UBER ---
+UBER skipped due to ATR percent being less than 3% (2.82%).
+
+--- Analyzing CMCSA ---
+CMCSA skipped due to ATR percent being less than 3% (1.84%).
+
+--- Analyzing UNP ---
+UNP skipped due to ATR percent being less than 3% (1.54%).
+
+--- Analyzing PGR ---
+PGR skipped due to ATR percent being less than 3% (1.77%).
+
+--- Analyzing T ---
+T skipped due to ATR percent being less than 3% (1.51%).
+
+--- Analyzing LOW ---
+LOW skipped due to ATR percent being less than 3% (2.10%).
+
+--- Analyzing TJX ---
+TJX skipped due to ATR percent being less than 3% (1.76%).
+
+--- Analyzing SYK ---
+SYK skipped due to ATR percent being less than 3% (1.57%).
+
+--- Analyzing LMT ---
+LMT skipped due to ATR percent being less than 3% (1.35%).
+
+--- Analyzing REGN ---
+REGN skipped due to ATR percent being less than 3% (1.87%).
+
+--- Analyzing HON ---
+HON skipped due to ATR percent being less than 3% (1.58%).
+
+--- Analyzing BLK ---
+BLK skipped due to ATR percent being less than 3% (1.57%).
+
+--- Analyzing COP ---
+COP skipped due to ATR percent being less than 3% (1.95%).
+
+--- Analyzing BKNG ---
+BKNG skipped due to ATR percent being less than 3% (2.13%).
+
+--- Analyzing ELV ---
+ELV skipped due to ATR percent being less than 3% (1.57%).
+
+--- Analyzing NKE ---
+NKE skipped due to ATR percent being less than 3% (2.20%).
+
+--- Analyzing VRTX ---
+VRTX skipped due to ATR percent being less than 3% (1.85%).
+
+--- Analyzing ETN ---
+ETN skipped due to ATR percent being less than 3% (2.84%).
+
+--- Analyzing SCHW ---
+SCHW skipped due to ATR percent being less than 3% (2.24%).
+
+--- Analyzing BSX ---
+BSX skipped due to ATR percent being less than 3% (1.54%).
+
+--- Analyzing PLD ---
+PLD skipped due to ATR percent being less than 3% (2.12%).
+
+--- Analyzing MU ---
+
+--- Analyzing C ---
+C skipped due to ATR percent being less than 3% (2.23%).
+
+--- Analyzing PANW ---
+Eligible Bullish Crossover found for PANW with Classified ATR: 3.0%
+Adding eligible trade for PANW.
+
+--- Analyzing MDT ---
+MDT skipped due to ATR percent being less than 3% (1.80%).
+
+--- Analyzing MMC ---
+MMC skipped due to ATR percent being less than 3% (1.39%).
+
+--- Analyzing ANET ---
+Eligible Bullish Crossover found for ANET with Classified ATR: 3.0%
+Adding eligible trade for ANET.
+
+--- Analyzing CB ---
+CB skipped due to ATR percent being less than 3% (1.45%).
+
+--- Analyzing ADI ---
+
+--- Analyzing ADP ---
+ADP skipped due to ATR percent being less than 3% (1.42%).
+
+--- Analyzing KKR ---
+KKR skipped due to ATR percent being less than 3% (2.42%).
+
+--- Analyzing LRCX ---
+
+--- Analyzing UPS ---
+UPS skipped due to ATR percent being less than 3% (1.88%).
+
+--- Analyzing KLAC ---
+
+--- Analyzing BA ---
+BA skipped due to ATR percent being less than 3% (2.79%).
+
+--- Analyzing SBUX ---
+SBUX skipped due to ATR percent being less than 3% (2.87%).
+
+--- Analyzing DE ---
+DE skipped due to ATR percent being less than 3% (2.06%).
+
+--- Analyzing AMT ---
+AMT skipped due to ATR percent being less than 3% (1.97%).
+
+--- Analyzing HCA ---
+HCA skipped due to ATR percent being less than 3% (1.61%).
+
+--- Analyzing FI ---
+FI skipped due to ATR percent being less than 3% (1.38%).
+
+--- Analyzing CI ---
+CI skipped due to ATR percent being less than 3% (1.80%).
+
+--- Analyzing BMY ---
+BMY skipped due to ATR percent being less than 3% (2.38%).
+
+--- Analyzing MDLZ ---
+MDLZ skipped due to ATR percent being less than 3% (1.56%).
+
+--- Analyzing SO ---
+SO skipped due to ATR percent being less than 3% (1.35%).
+
+--- Analyzing GILD ---
+GILD skipped due to ATR percent being less than 3% (1.94%).
+
+--- Analyzing ICE ---
+ICE skipped due to ATR percent being less than 3% (1.20%).
+
+--- Analyzing SHW ---
+SHW skipped due to ATR percent being less than 3% (1.54%).
+
+--- Analyzing MO ---
+MO skipped due to ATR percent being less than 3% (1.27%).
+
+--- Analyzing MCO ---
+MCO skipped due to ATR percent being less than 3% (1.53%).
+
+--- Analyzing DUK ---
+DUK skipped due to ATR percent being less than 3% (1.40%).
+
+--- Analyzing INTC ---
+
+--- Analyzing CL ---
+CL skipped due to ATR percent being less than 3% (1.37%).
+
+--- Analyzing WM ---
+WM skipped due to ATR percent being less than 3% (1.38%).
+
+--- Analyzing SNPS ---
+
+--- Analyzing ZTS ---
+ZTS skipped due to ATR percent being less than 3% (1.91%).
+
+--- Analyzing GD ---
+GD skipped due to ATR percent being less than 3% (1.44%).
+
+--- Analyzing APH ---
+APH skipped due to ATR percent being less than 3% (2.36%).
+
+--- Analyzing TT ---
+TT skipped due to ATR percent being less than 3% (2.08%).
+
+--- Analyzing CTAS ---
+CTAS skipped due to ATR percent being less than 3% (1.39%).
+
+--- Analyzing EQIX ---
+EQIX skipped due to ATR percent being less than 3% (1.85%).
+
+--- Analyzing PH ---
+PH skipped due to ATR percent being less than 3% (2.20%).
+
+--- Analyzing CME ---
+CME skipped due to ATR percent being less than 3% (1.50%).
+
+--- Analyzing CDNS ---
+
+--- Analyzing NOC ---
+NOC skipped due to ATR percent being less than 3% (1.48%).
+
+--- Analyzing AON ---
+AON skipped due to ATR percent being less than 3% (1.44%).
+
+--- Analyzing CMG ---
+
+--- Analyzing TDG ---
+TDG skipped due to ATR percent being less than 3% (2.14%).
+
+--- Analyzing PYPL ---
+PYPL skipped due to ATR percent being less than 3% (2.74%).
+
+--- Analyzing ABNB ---
+ABNB skipped due to ATR percent being less than 3% (2.89%).
+
+--- Analyzing ITW ---
+ITW skipped due to ATR percent being less than 3% (1.52%).
+
+--- Analyzing MCK ---
+MCK skipped due to ATR percent being less than 3% (1.98%).
+
+--- Analyzing CVS ---
+CVS skipped due to ATR percent being less than 3% (2.29%).
+
+--- Analyzing TGT ---
+TGT skipped due to ATR percent being less than 3% (2.82%).
+
+--- Analyzing FDX ---
+FDX skipped due to ATR percent being less than 3% (1.70%).
+
+--- Analyzing WELL ---
+WELL skipped due to ATR percent being less than 3% (1.57%).
+
+--- Analyzing EOG ---
+EOG skipped due to ATR percent being less than 3% (1.97%).
+
+--- Analyzing MSI ---
+MSI skipped due to ATR percent being less than 3% (1.34%).
+
+--- Analyzing MMM ---
+MMM skipped due to ATR percent being less than 3% (1.82%).
+
+--- Analyzing ECL ---
+ECL skipped due to ATR percent being less than 3% (1.47%).
+
+--- Analyzing PNC ---
+PNC skipped due to ATR percent being less than 3% (1.84%).
+
+--- Analyzing USB ---
+USB skipped due to ATR percent being less than 3% (1.84%).
+
+--- Analyzing BDX ---
+BDX skipped due to ATR percent being less than 3% (1.46%).
+
+--- Analyzing ORLY ---
+ORLY skipped due to ATR percent being less than 3% (1.80%).
+
+--- Analyzing CRWD ---
+
+--- Analyzing RSG ---
+RSG skipped due to ATR percent being less than 3% (1.29%).
+
+--- Analyzing CSX ---
+CSX skipped due to ATR percent being less than 3% (1.83%).
+
+--- Analyzing AJG ---
+AJG skipped due to ATR percent being less than 3% (1.42%).
+
+--- Analyzing MAR ---
+MAR skipped due to ATR percent being less than 3% (1.89%).
+
+--- Analyzing CARR ---
+CARR skipped due to ATR percent being less than 3% (2.28%).
+
+--- Analyzing SLB ---
+SLB skipped due to ATR percent being less than 3% (2.32%).
+
+--- Analyzing NXPI ---
+
+--- Analyzing FCX ---
+FCX skipped due to ATR percent being less than 3% (2.86%).
+
+--- Analyzing APD ---
+APD skipped due to ATR percent being less than 3% (1.75%).
+
+--- Analyzing CEG ---
+
+--- Analyzing SPG ---
+SPG skipped due to ATR percent being less than 3% (2.02%).
+
+--- Analyzing DHI ---
+DHI skipped due to ATR percent being less than 3% (2.59%).
+
+--- Analyzing AFL ---
+AFL skipped due to ATR percent being less than 3% (1.44%).
+
+--- Analyzing EMR ---
+EMR skipped due to ATR percent being less than 3% (2.05%).
+
+--- Analyzing NEM ---
+NEM skipped due to ATR percent being less than 3% (2.39%).
+
+--- Analyzing ROP ---
+ROP skipped due to ATR percent being less than 3% (1.75%).
+
+--- Analyzing PSA ---
+PSA skipped due to ATR percent being less than 3% (1.85%).
+
+--- Analyzing MPC ---
+MPC skipped due to ATR percent being less than 3% (2.59%).
+
+--- Analyzing FTNT ---
+FTNT skipped due to ATR percent being less than 3% (2.26%).
+
+--- Analyzing TFC ---
+TFC skipped due to ATR percent being less than 3% (2.02%).
+
+--- Analyzing PSX ---
+PSX skipped due to ATR percent being less than 3% (2.34%).
+
+--- Analyzing WMB ---
+WMB skipped due to ATR percent being less than 3% (1.66%).
+
+--- Analyzing AZO ---
+AZO skipped due to ATR percent being less than 3% (1.81%).
+
+--- Analyzing ADSK ---
+ADSK skipped due to ATR percent being less than 3% (2.29%).
+
+--- Analyzing NSC ---
+NSC skipped due to ATR percent being less than 3% (1.98%).
+
+--- Analyzing COF ---
+COF skipped due to ATR percent being less than 3% (2.20%).
+
+--- Analyzing HLT ---
+HLT skipped due to ATR percent being less than 3% (1.80%).
+
+--- Analyzing O ---
+O skipped due to ATR percent being less than 3% (1.47%).
+
+--- Analyzing AEP ---
+AEP skipped due to ATR percent being less than 3% (1.52%).
+
+--- Analyzing GM ---
+GM skipped due to ATR percent being less than 3% (2.19%).
+
+--- Analyzing MET ---
+MET skipped due to ATR percent being less than 3% (1.69%).
+
+--- Analyzing SRE ---
+SRE skipped due to ATR percent being less than 3% (1.49%).
+
+--- Analyzing OXY ---
+OXY skipped due to ATR percent being less than 3% (2.00%).
+
+--- Analyzing GEV ---
+
+--- Analyzing OKE ---
+OKE skipped due to ATR percent being less than 3% (1.68%).
+
+--- Analyzing ROST ---
+ROST skipped due to ATR percent being less than 3% (2.26%).
+
+--- Analyzing DLR ---
+DLR skipped due to ATR percent being less than 3% (1.92%).
+
+--- Analyzing CPRT ---
+CPRT skipped due to ATR percent being less than 3% (1.68%).
+
+--- Analyzing PCAR ---
+PCAR skipped due to ATR percent being less than 3% (2.13%).
+
+--- Analyzing TRV ---
+TRV skipped due to ATR percent being less than 3% (1.62%).
+
+--- Analyzing PCG ---
+PCG skipped due to ATR percent being less than 3% (1.46%).
+
+--- Analyzing KMB ---
+KMB skipped due to ATR percent being less than 3% (1.42%).
+
+--- Analyzing LEN ---
+LEN skipped due to ATR percent being less than 3% (2.53%).
+
+--- Analyzing CHTR ---
+CHTR skipped due to ATR percent being less than 3% (2.81%).
+
+--- Analyzing KDP ---
+KDP skipped due to ATR percent being less than 3% (1.41%).
+
+--- Analyzing BK ---
+BK skipped due to ATR percent being less than 3% (1.53%).
+
+--- Analyzing AIG ---
+AIG skipped due to ATR percent being less than 3% (1.81%).
+
+--- Analyzing ALL ---
+ALL skipped due to ATR percent being less than 3% (1.94%).
+
+--- Analyzing GWW ---
+GWW skipped due to ATR percent being less than 3% (1.90%).
+
+--- Analyzing CCI ---
+CCI skipped due to ATR percent being less than 3% (1.75%).
+
+--- Analyzing URI ---
+URI skipped due to ATR percent being less than 3% (2.95%).
+
+--- Analyzing D ---
+D skipped due to ATR percent being less than 3% (1.59%).
+
+--- Analyzing JCI ---
+JCI skipped due to ATR percent being less than 3% (1.99%).
+
+--- Analyzing COR ---
+COR skipped due to ATR percent being less than 3% (1.58%).
+
+--- Analyzing KMI ---
+KMI skipped due to ATR percent being less than 3% (1.56%).
+
+--- Analyzing PAYX ---
+PAYX skipped due to ATR percent being less than 3% (1.56%).
+
+--- Analyzing VLO ---
+VLO skipped due to ATR percent being less than 3% (2.87%).
+
+--- Analyzing TEL ---
+TEL skipped due to ATR percent being less than 3% (1.72%).
+
+--- Analyzing MNST ---
+MNST skipped due to ATR percent being less than 3% (2.14%).
+
+--- Analyzing IQV ---
+IQV skipped due to ATR percent being less than 3% (2.12%).
+
+--- Analyzing STZ ---
+STZ skipped due to ATR percent being less than 3% (1.70%).
+
+--- Analyzing MSCI ---
+MSCI skipped due to ATR percent being less than 3% (1.91%).
+
+--- Analyzing MPWR ---
+
+--- Analyzing LHX ---
+LHX skipped due to ATR percent being less than 3% (1.63%).
+
+--- Analyzing F ---
+F skipped due to ATR percent being less than 3% (2.67%).
+
+--- Analyzing ODFL ---
+
+--- Analyzing EW ---
+
+--- Analyzing KHC ---
+KHC skipped due to ATR percent being less than 3% (1.77%).
+
+--- Analyzing FIS ---
+FIS skipped due to ATR percent being less than 3% (1.78%).
+
+--- Analyzing MCHP ---
+
+--- Analyzing HUM ---
+HUM skipped due to ATR percent being less than 3% (2.21%).
+
+--- Analyzing FICO ---
+FICO skipped due to ATR percent being less than 3% (2.38%).
+
+--- Analyzing AMP ---
+AMP skipped due to ATR percent being less than 3% (1.72%).
+
+--- Analyzing HES ---
+HES skipped due to ATR percent being less than 3% (1.95%).
+
+--- Analyzing CMI ---
+CMI skipped due to ATR percent being less than 3% (2.05%).
+
+--- Analyzing KVUE ---
+KVUE skipped due to ATR percent being less than 3% (1.95%).
+
+--- Analyzing CNC ---
+CNC skipped due to ATR percent being less than 3% (1.81%).
+
+--- Analyzing PRU ---
+PRU skipped due to ATR percent being less than 3% (1.84%).
+
+--- Analyzing A ---
+A skipped due to ATR percent being less than 3% (2.03%).
+
+--- Analyzing RCL ---
+
+--- Analyzing NDAQ ---
+NDAQ skipped due to ATR percent being less than 3% (1.32%).
+
+--- Analyzing IDXX ---
+IDXX skipped due to ATR percent being less than 3% (2.56%).
+
+--- Analyzing PEG ---
+PEG skipped due to ATR percent being less than 3% (1.51%).
+
+--- Analyzing ACGL ---
+ACGL skipped due to ATR percent being less than 3% (1.72%).
+
+--- Analyzing HSY ---
+HSY skipped due to ATR percent being less than 3% (1.89%).
+
+--- Analyzing PWR ---
+PWR skipped due to ATR percent being less than 3% (2.85%).
+
+--- Analyzing HWM ---
+HWM skipped due to ATR percent being less than 3% (2.22%).
+
+--- Analyzing GIS ---
+GIS skipped due to ATR percent being less than 3% (1.70%).
+
+--- Analyzing EA ---
+EA skipped due to ATR percent being less than 3% (1.57%).
+
+--- Analyzing FAST ---
+FAST skipped due to ATR percent being less than 3% (1.88%).
+
+--- Analyzing GEHC ---
+GEHC skipped due to ATR percent being less than 3% (2.01%).
+
+--- Analyzing YUM ---
+YUM skipped due to ATR percent being less than 3% (1.56%).
+
+--- Analyzing VRSK ---
+VRSK skipped due to ATR percent being less than 3% (1.66%).
+
+--- Analyzing EXR ---
+EXR skipped due to ATR percent being less than 3% (2.06%).
+
+--- Analyzing AME ---
+AME skipped due to ATR percent being less than 3% (1.87%).
+
+--- Analyzing SYY ---
+SYY skipped due to ATR percent being less than 3% (1.52%).
+
+--- Analyzing EXC ---
+EXC skipped due to ATR percent being less than 3% (1.47%).
+
+--- Analyzing CTSH ---
+CTSH skipped due to ATR percent being less than 3% (1.59%).
+
+--- Analyzing CTVA ---
+CTVA skipped due to ATR percent being less than 3% (1.85%).
+
+--- Analyzing KR ---
+KR skipped due to ATR percent being less than 3% (1.76%).
+
+--- Analyzing OTIS ---
+OTIS skipped due to ATR percent being less than 3% (1.54%).
+
+--- Analyzing DOW ---
+DOW skipped due to ATR percent being less than 3% (1.83%).
+
+--- Analyzing IT ---
+IT skipped due to ATR percent being less than 3% (1.89%).
+
+--- Analyzing EFX ---
+EFX skipped due to ATR percent being less than 3% (2.13%).
+
+--- Analyzing IR ---
+IR skipped due to ATR percent being less than 3% (2.35%).
+
+--- Analyzing SMCI ---
+
+--- Analyzing GLW ---
+GLW skipped due to ATR percent being less than 3% (2.10%).
+
+--- Analyzing ED ---
+ED skipped due to ATR percent being less than 3% (1.46%).
+
+--- Analyzing NUE ---
+NUE skipped due to ATR percent being less than 3% (2.40%).
+
+--- Analyzing BKR ---
+BKR skipped due to ATR percent being less than 3% (2.20%).
+
+--- Analyzing CBRE ---
+CBRE skipped due to ATR percent being less than 3% (2.00%).
+
+--- Analyzing HPQ ---
+HPQ skipped due to ATR percent being less than 3% (2.74%).
+
+--- Analyzing FANG ---
+FANG skipped due to ATR percent being less than 3% (2.34%).
+
+--- Analyzing GRMN ---
+GRMN skipped due to ATR percent being less than 3% (1.67%).
+
+--- Analyzing VICI ---
+VICI skipped due to ATR percent being less than 3% (1.46%).
+
+--- Analyzing DD ---
+DD skipped due to ATR percent being less than 3% (1.60%).
+
+--- Analyzing XEL ---
+XEL skipped due to ATR percent being less than 3% (1.70%).
+
+--- Analyzing MLM ---
+MLM skipped due to ATR percent being less than 3% (2.86%).
+
+--- Analyzing IRM ---
+IRM skipped due to ATR percent being less than 3% (2.14%).
+
+--- Analyzing DFS ---
+DFS skipped due to ATR percent being less than 3% (2.39%).
+
+--- Analyzing LULU ---
+
+--- Analyzing XYL ---
+XYL skipped due to ATR percent being less than 3% (1.86%).
+
+--- Analyzing RMD ---
+RMD skipped due to ATR percent being less than 3% (2.62%).
+
+--- Analyzing EL ---
+
+--- Analyzing VMC ---
+VMC skipped due to ATR percent being less than 3% (2.76%).
+
+--- Analyzing HIG ---
+HIG skipped due to ATR percent being less than 3% (1.50%).
+
+--- Analyzing EIX ---
+EIX skipped due to ATR percent being less than 3% (1.45%).
+
+--- Analyzing ON ---
+
+--- Analyzing LYB ---
+LYB skipped due to ATR percent being less than 3% (1.74%).
+
+--- Analyzing TRGP ---
+TRGP skipped due to ATR percent being less than 3% (1.85%).
+
+--- Analyzing MRNA ---
+
+--- Analyzing AVB ---
+AVB skipped due to ATR percent being less than 3% (1.56%).
+
+--- Analyzing CSGP ---
+CSGP skipped due to ATR percent being less than 3% (2.28%).
+
+--- Analyzing LVS ---
+LVS skipped due to ATR percent being less than 3% (2.40%).
+
+--- Analyzing MTD ---
+MTD skipped due to ATR percent being less than 3% (2.19%).
+
+--- Analyzing CDW ---
+CDW skipped due to ATR percent being less than 3% (2.05%).
+
+--- Analyzing ROK ---
+ROK skipped due to ATR percent being less than 3% (2.63%).
+
+--- Analyzing BIIB ---
+BIIB skipped due to ATR percent being less than 3% (2.17%).
+
+--- Analyzing BRO ---
+BRO skipped due to ATR percent being less than 3% (1.39%).
+
+--- Analyzing WEC ---
+WEC skipped due to ATR percent being less than 3% (1.37%).
+
+--- Analyzing PPG ---
+PPG skipped due to ATR percent being less than 3% (1.51%).
+
+--- Analyzing DXCM ---
+
+--- Analyzing WTW ---
+WTW skipped due to ATR percent being less than 3% (1.44%).
+
+--- Analyzing EBAY ---
+EBAY skipped due to ATR percent being less than 3% (2.15%).
+
+--- Analyzing VST ---
+
+--- Analyzing TSCO ---
+TSCO skipped due to ATR percent being less than 3% (2.24%).
+
+--- Analyzing WAB ---
+WAB skipped due to ATR percent being less than 3% (1.86%).
+
+--- Analyzing ANSS ---
+ANSS skipped due to ATR percent being less than 3% (1.99%).
+
+--- Analyzing EQR ---
+EQR skipped due to ATR percent being less than 3% (1.55%).
+
+--- Analyzing ADM ---
+ADM skipped due to ATR percent being less than 3% (1.75%).
+
+--- Analyzing AXON ---
+AXON skipped due to ATR percent being less than 3% (2.59%).
+
+--- Analyzing TTWO ---
+TTWO skipped due to ATR percent being less than 3% (2.06%).
+
+--- Analyzing GPN ---
+GPN skipped due to ATR percent being less than 3% (2.21%).
+
+--- Analyzing K ---
+K skipped due to ATR percent being less than 3% (1.35%).
+
+--- Analyzing FITB ---
+FITB skipped due to ATR percent being less than 3% (2.10%).
+
+--- Analyzing NVR ---
+NVR skipped due to ATR percent being less than 3% (2.14%).
+
+--- Analyzing HAL ---
+HAL skipped due to ATR percent being less than 3% (2.46%).
+
+--- Analyzing MTB ---
+MTB skipped due to ATR percent being less than 3% (1.98%).
+
+--- Analyzing VLTO ---
+VLTO skipped due to ATR percent being less than 3% (1.44%).
+
+--- Analyzing DVN ---
+DVN skipped due to ATR percent being less than 3% (2.29%).
+
+--- Analyzing AWK ---
+AWK skipped due to ATR percent being less than 3% (1.67%).
+
+--- Analyzing DG ---
+
+--- Analyzing NTAP ---
+NTAP skipped due to ATR percent being less than 3% (2.90%).
+
+--- Analyzing CAH ---
+CAH skipped due to ATR percent being less than 3% (1.78%).
+
+--- Analyzing KEYS ---
+KEYS skipped due to ATR percent being less than 3% (2.61%).
+
+--- Analyzing PHM ---
+PHM skipped due to ATR percent being less than 3% (2.78%).
+
+--- Analyzing DAL ---
+DAL skipped due to ATR percent being less than 3% (2.66%).
+
+--- Analyzing IFF ---
+IFF skipped due to ATR percent being less than 3% (1.98%).
+
+--- Analyzing DTE ---
+DTE skipped due to ATR percent being less than 3% (1.42%).
+
+--- Analyzing ETR ---
+ETR skipped due to ATR percent being less than 3% (1.43%).
+
+--- Analyzing FTV ---
+FTV skipped due to ATR percent being less than 3% (1.85%).
+
+--- Analyzing CHD ---
+CHD skipped due to ATR percent being less than 3% (1.52%).
+
+--- Analyzing DOV ---
+DOV skipped due to ATR percent being less than 3% (1.73%).
+
+--- Analyzing FE ---
+FE skipped due to ATR percent being less than 3% (1.26%).
+
+--- Analyzing STT ---
+STT skipped due to ATR percent being less than 3% (1.83%).
+
+--- Analyzing BR ---
+BR skipped due to ATR percent being less than 3% (1.68%).
+
+--- Analyzing VTR ---
+VTR skipped due to ATR percent being less than 3% (1.56%).
+
+--- Analyzing TYL ---
+TYL skipped due to ATR percent being less than 3% (1.63%).
+
+--- Analyzing HST ---
+HST skipped due to ATR percent being less than 3% (2.32%).
+
+--- Analyzing HPE ---
+HPE skipped due to ATR percent being less than 3% (2.74%).
+
+--- Analyzing ROL ---
+ROL skipped due to ATR percent being less than 3% (1.70%).
+
+--- Analyzing TROW ---
+TROW skipped due to ATR percent being less than 3% (2.16%).
+
+--- Analyzing DECK ---
+DECK skipped due to ATR percent being less than 3% (2.90%).
+
+--- Analyzing ES ---
+ES skipped due to ATR percent being less than 3% (1.62%).
+
+--- Analyzing RJF ---
+RJF skipped due to ATR percent being less than 3% (1.82%).
+
+--- Analyzing SBAC ---
+SBAC skipped due to ATR percent being less than 3% (1.92%).
+
+--- Analyzing FSLR ---
+
+--- Analyzing PPL ---
+PPL skipped due to ATR percent being less than 3% (1.27%).
+
+--- Analyzing ZBH ---
+ZBH skipped due to ATR percent being less than 3% (1.65%).
+
+--- Analyzing STE ---
+STE skipped due to ATR percent being less than 3% (1.83%).
+
+--- Analyzing GDDY ---
+GDDY skipped due to ATR percent being less than 3% (1.80%).
+
+--- Analyzing SW ---
+SW skipped due to ATR percent being less than 3% (2.54%).
+
+--- Analyzing TSN ---
+TSN skipped due to ATR percent being less than 3% (1.65%).
+
+--- Analyzing LYV ---
+LYV skipped due to ATR percent being less than 3% (2.00%).
+
+--- Analyzing WRB ---
+WRB skipped due to ATR percent being less than 3% (1.51%).
+
+--- Analyzing INVH ---
+INVH skipped due to ATR percent being less than 3% (1.64%).
+
+--- Analyzing WY ---
+WY skipped due to ATR percent being less than 3% (1.90%).
+
+--- Analyzing WDC ---
+
+--- Analyzing AEE ---
+AEE skipped due to ATR percent being less than 3% (1.45%).
+
+--- Analyzing CBOE ---
+CBOE skipped due to ATR percent being less than 3% (2.12%).
+
+--- Analyzing WST ---
+WST skipped due to ATR percent being less than 3% (2.77%).
+
+--- Analyzing STX ---
+STX skipped due to ATR percent being less than 3% (2.97%).
+
+--- Analyzing TER ---
+
+--- Analyzing BFB ---
+404 Client Error: Not Found for url: https://api.robinhood.com/quotes/historicals/?symbols=BFB&interval=day&span=3month&bounds=regular
+Not enough data for BFB. Skipping...
+
+--- Analyzing MKC ---
+MKC skipped due to ATR percent being less than 3% (1.66%).
+
+--- Analyzing DLTR ---
+
+--- Analyzing PTC ---
+PTC skipped due to ATR percent being less than 3% (2.04%).
+
+--- Analyzing ARE ---
+ARE skipped due to ATR percent being less than 3% (2.19%).
+
+--- Analyzing HBAN ---
+HBAN skipped due to ATR percent being less than 3% (2.12%).
+
+--- Analyzing LDOS ---
+LDOS skipped due to ATR percent being less than 3% (1.56%).
+
+--- Analyzing CPAY ---
+CPAY skipped due to ATR percent being less than 3% (2.18%).
+
+--- Analyzing CINF ---
+CINF skipped due to ATR percent being less than 3% (1.61%).
+
+--- Analyzing HUBB ---
+HUBB skipped due to ATR percent being less than 3% (2.62%).
+
+--- Analyzing RF ---
+RF skipped due to ATR percent being less than 3% (2.19%).
+
+--- Analyzing CCL ---
+
+--- Analyzing MOH ---
+MOH skipped due to ATR percent being less than 3% (2.31%).
+
+--- Analyzing ATO ---
+ATO skipped due to ATR percent being less than 3% (1.27%).
+
+--- Analyzing CMS ---
+CMS skipped due to ATR percent being less than 3% (1.26%).
+
+--- Analyzing WAT ---
+WAT skipped due to ATR percent being less than 3% (2.45%).
+
+--- Analyzing GPC ---
+GPC skipped due to ATR percent being less than 3% (1.76%).
+
+--- Analyzing TDY ---
+TDY skipped due to ATR percent being less than 3% (1.46%).
+
+--- Analyzing EQT ---
+EQT skipped due to ATR percent being less than 3% (2.92%).
+
+--- Analyzing BLDR ---
+
+--- Analyzing BALL ---
+BALL skipped due to ATR percent being less than 3% (1.83%).
+
+--- Analyzing LH ---
+LH skipped due to ATR percent being less than 3% (1.89%).
+
+--- Analyzing ESS ---
+ESS skipped due to ATR percent being less than 3% (1.71%).
+
+--- Analyzing OMC ---
+OMC skipped due to ATR percent being less than 3% (1.76%).
+
+--- Analyzing COO ---
+COO skipped due to ATR percent being less than 3% (2.48%).
+
+--- Analyzing CLX ---
+CLX skipped due to ATR percent being less than 3% (1.75%).
+
+--- Analyzing SYF ---
+SYF skipped due to ATR percent being less than 3% (2.25%).
+
+--- Analyzing BAX ---
+BAX skipped due to ATR percent being less than 3% (2.28%).
+
+--- Analyzing HOLX ---
+HOLX skipped due to ATR percent being less than 3% (1.53%).
+
+--- Analyzing CFG ---
+CFG skipped due to ATR percent being less than 3% (2.21%).
+
+--- Analyzing MAA ---
+MAA skipped due to ATR percent being less than 3% (1.64%).
+
+--- Analyzing BBY ---
+Eligible Bullish Crossover found for BBY with Classified ATR: 3.0%
+Adding eligible trade for BBY.
+
+--- Analyzing J ---
+J skipped due to ATR percent being less than 3% (1.51%).
+
+--- Analyzing WBD ---
+
+--- Analyzing STLD ---
+STLD skipped due to ATR percent being less than 3% (2.83%).
+
+--- Analyzing DRI ---
+DRI skipped due to ATR percent being less than 3% (1.96%).
+
+--- Analyzing PKG ---
+PKG skipped due to ATR percent being less than 3% (1.56%).
+
+--- Analyzing FOX ---
+FOX skipped due to ATR percent being less than 3% (1.35%).
+
+--- Analyzing FOXA ---
+FOXA skipped due to ATR percent being less than 3% (1.37%).
+
+--- Analyzing PFG ---
+PFG skipped due to ATR percent being less than 3% (1.65%).
+
+--- Analyzing ULTA ---
+
+--- Analyzing JBHT ---
+JBHT skipped due to ATR percent being less than 3% (2.79%).
+
+--- Analyzing ZBRA ---
+ZBRA skipped due to ATR percent being less than 3% (2.43%).
+
+--- Analyzing CTRA ---
+CTRA skipped due to ATR percent being less than 3% (2.09%).
+
+--- Analyzing NTRS ---
+NTRS skipped due to ATR percent being less than 3% (1.88%).
+
+--- Analyzing VRSN ---
+VRSN skipped due to ATR percent being less than 3% (1.81%).
+
+--- Analyzing CNP ---
+CNP skipped due to ATR percent being less than 3% (2.08%).
+
+--- Analyzing HRL ---
+HRL skipped due to ATR percent being less than 3% (1.77%).
+
+--- Analyzing L ---
+L skipped due to ATR percent being less than 3% (1.41%).
+
+--- Analyzing AVY ---
+AVY skipped due to ATR percent being less than 3% (1.75%).
+
+--- Analyzing EXPD ---
+EXPD skipped due to ATR percent being less than 3% (1.68%).
+
+--- Analyzing EXPE ---
+EXPE skipped due to ATR percent being less than 3% (2.94%).
+
+--- Analyzing ALGN ---
+
+--- Analyzing DGX ---
+DGX skipped due to ATR percent being less than 3% (1.54%).
+
+--- Analyzing MAS ---
+MAS skipped due to ATR percent being less than 3% (2.25%).
+
+--- Analyzing NRG ---
+
+--- Analyzing SWKS ---
+
+--- Analyzing IP ---
+IP skipped due to ATR percent being less than 3% (1.99%).
+
+--- Analyzing TXT ---
+TXT skipped due to ATR percent being less than 3% (1.66%).
+
+--- Analyzing EG ---
+EG skipped due to ATR percent being less than 3% (1.75%).
+
+--- Analyzing APTV ---
+APTV skipped due to ATR percent being less than 3% (2.88%).
+
+--- Analyzing LUV ---
+LUV skipped due to ATR percent being less than 3% (2.82%).
+
+--- Analyzing NWSA ---
+NWSA skipped due to ATR percent being less than 3% (1.89%).
+
+--- Analyzing NWS ---
+NWS skipped due to ATR percent being less than 3% (1.84%).
+
+--- Analyzing UDR ---
+UDR skipped due to ATR percent being less than 3% (1.53%).
+
+--- Analyzing AMCR ---
+AMCR skipped due to ATR percent being less than 3% (1.69%).
+
+--- Analyzing ENPH ---
+
+--- Analyzing GEN ---
+GEN skipped due to ATR percent being less than 3% (2.05%).
+
+--- Analyzing FDS ---
+FDS skipped due to ATR percent being less than 3% (1.62%).
+
+--- Analyzing MRO ---
+MRO skipped due to ATR percent being less than 3% (1.99%).
+
+--- Analyzing DOC ---
+DOC skipped due to ATR percent being less than 3% (1.80%).
+
+--- Analyzing AKAM ---
+AKAM skipped due to ATR percent being less than 3% (2.04%).
+
+--- Analyzing KIM ---
+KIM skipped due to ATR percent being less than 3% (1.62%).
+
+--- Analyzing UHS ---
+UHS skipped due to ATR percent being less than 3% (1.76%).
+
+--- Analyzing KEY ---
+KEY skipped due to ATR percent being less than 3% (2.80%).
+
+--- Analyzing SWK ---
+SWK skipped due to ATR percent being less than 3% (2.57%).
+
+--- Analyzing CPB ---
+CPB skipped due to ATR percent being less than 3% (2.03%).
+
+--- Analyzing IEX ---
+IEX skipped due to ATR percent being less than 3% (1.73%).
+
+--- Analyzing LNT ---
+LNT skipped due to ATR percent being less than 3% (1.35%).
+
+--- Analyzing RVTY ---
+RVTY skipped due to ATR percent being less than 3% (2.25%).
+
+--- Analyzing NDSN ---
+NDSN skipped due to ATR percent being less than 3% (1.96%).
+
+--- Analyzing SNA ---
+SNA skipped due to ATR percent being less than 3% (1.58%).
+
+--- Analyzing NI ---
+NI skipped due to ATR percent being less than 3% (1.24%).
+
+--- Analyzing CAG ---
+CAG skipped due to ATR percent being less than 3% (1.91%).
+
+--- Analyzing DPZ ---
+DPZ skipped due to ATR percent being less than 3% (2.43%).
+
+--- Analyzing CF ---
+CF skipped due to ATR percent being less than 3% (1.97%).
+
+--- Analyzing CE ---
+CE skipped due to ATR percent being less than 3% (2.34%).
+
+--- Analyzing VTRS ---
+VTRS skipped due to ATR percent being less than 3% (2.27%).
+
+--- Analyzing PNR ---
+PNR skipped due to ATR percent being less than 3% (2.24%).
+
+--- Analyzing TRMB ---
+TRMB skipped due to ATR percent being less than 3% (1.97%).
+
+--- Analyzing BG ---
+BG skipped due to ATR percent being less than 3% (2.11%).
+
+--- Analyzing UAL ---
+
+--- Analyzing EVRG ---
+EVRG skipped due to ATR percent being less than 3% (1.44%).
+
+--- Analyzing POOL ---
+POOL skipped due to ATR percent being less than 3% (2.28%).
+
+--- Analyzing PODD ---
+
+--- Analyzing REG ---
+REG skipped due to ATR percent being less than 3% (1.40%).
+
+--- Analyzing CPT ---
+CPT skipped due to ATR percent being less than 3% (1.65%).
+
+--- Analyzing SJM ---
+SJM skipped due to ATR percent being less than 3% (2.26%).
+
+--- Analyzing KMX ---
+KMX skipped due to ATR percent being less than 3% (2.73%).
+
+--- Analyzing DVA ---
+DVA skipped due to ATR percent being less than 3% (2.51%).
+
+--- Analyzing JNPR ---
+JNPR skipped due to ATR percent being less than 3% (0.63%).
+
+--- Analyzing AES ---
+AES skipped due to ATR percent being less than 3% (2.71%).
+
+--- Analyzing BXP ---
+BXP skipped due to ATR percent being less than 3% (2.51%).
+
+--- Analyzing JBL ---
+JBL skipped due to ATR percent being less than 3% (2.54%).
+
+--- Analyzing INCY ---
+INCY skipped due to ATR percent being less than 3% (2.33%).
+
+--- Analyzing JKHY ---
+JKHY skipped due to ATR percent being less than 3% (1.95%).
+
+--- Analyzing IPG ---
+IPG skipped due to ATR percent being less than 3% (1.72%).
+
+--- Analyzing CHRW ---
+CHRW skipped due to ATR percent being less than 3% (1.95%).
+
+--- Analyzing AOS ---
+AOS skipped due to ATR percent being less than 3% (2.05%).
+
+--- Analyzing MGM ---
+
+--- Analyzing ALLE ---
+ALLE skipped due to ATR percent being less than 3% (1.98%).
+
+--- Analyzing EMN ---
+EMN skipped due to ATR percent being less than 3% (1.93%).
+
+--- Analyzing FFIV ---
+FFIV skipped due to ATR percent being less than 3% (1.94%).
+
+--- Analyzing TFX ---
+TFX skipped due to ATR percent being less than 3% (1.98%).
+
+--- Analyzing TECH ---
+
+--- Analyzing EPAM ---
+
+--- Analyzing TAP ---
+TAP skipped due to ATR percent being less than 3% (1.92%).
+
+--- Analyzing LKQ ---
+LKQ skipped due to ATR percent being less than 3% (2.19%).
+
+--- Analyzing BEN ---
+
+--- Analyzing CTLT ---
+CTLT skipped due to ATR percent being less than 3% (0.76%).
+
+--- Analyzing HII ---
+HII skipped due to ATR percent being less than 3% (1.91%).
+
+--- Analyzing QRVO ---
+
+--- Analyzing RL ---
+RL skipped due to ATR percent being less than 3% (2.87%).
+
+--- Analyzing CRL ---
+
+--- Analyzing APA ---
+
+--- Analyzing SOLV ---
+
+--- Analyzing ALB ---
+
+--- Analyzing PNW ---
+PNW skipped due to ATR percent being less than 3% (1.41%).
+
+--- Analyzing AIZ ---
+AIZ skipped due to ATR percent being less than 3% (1.80%).
+
+--- Analyzing FRT ---
+FRT skipped due to ATR percent being less than 3% (1.46%).
+
+--- Analyzing MHK ---
+MHK skipped due to ATR percent being less than 3% (2.80%).
+
+--- Analyzing MTCH ---
+MTCH skipped due to ATR percent being less than 3% (2.85%).
+
+--- Analyzing HAS ---
+HAS skipped due to ATR percent being less than 3% (2.02%).
+
+--- Analyzing TPR ---
+
+--- Analyzing PAYC ---
+PAYC skipped due to ATR percent being less than 3% (2.59%).
+
+--- Analyzing GNRC ---
+
+--- Analyzing LW ---
+LW skipped due to ATR percent being less than 3% (2.82%).
+
+--- Analyzing MKTX ---
+MKTX skipped due to ATR percent being less than 3% (2.46%).
+
+--- Analyzing GL ---
+GL skipped due to ATR percent being less than 3% (2.07%).
+
+--- Analyzing MOS ---
+MOS skipped due to ATR percent being less than 3% (2.64%).
+
+--- Analyzing HSIC ---
+HSIC skipped due to ATR percent being less than 3% (2.65%).
+
+--- Analyzing DAY ---
+
+--- Analyzing BIO ---
+BIO skipped due to ATR percent being less than 3% (2.75%).
+
+--- Analyzing WBA ---
+
+--- Analyzing WYNN ---
+WYNN skipped due to ATR percent being less than 3% (2.42%).
+
+--- Analyzing FMC ---
+FMC skipped due to ATR percent being less than 3% (2.68%).
+
+--- Analyzing PARA ---
+
+--- Analyzing CZR ---
+
+--- Analyzing BBWI ---
+
+--- Analyzing IVZ ---
+IVZ skipped due to ATR percent being less than 3% (2.41%).
+
+--- Analyzing BWA ---
+BWA skipped due to ATR percent being less than 3% (2.28%).
+
+--- Analyzing NCLH ---
+
+--- Analyzing AAL ---
+
+--- Analyzing ETSY ---
+Found Additional pages.
+Loading page 2 ...
+Initial Risk: 0.00% of Portfolio
+Max Allowed Risk: 30.29 of Portfolio
+Current Positions: {'BBY': {'price': '102.160000', 'quantity': '2.00000000', 'average_buy_price': '100.5500', 'equity': '204.32', 'percent_change': '1.60', 'intraday_percent_change': '1.60', 'equity_change': '3.220000', 'type': 'stock', 'name': 'Best Buy', 'id': '6d97a28c-1e6a-41f8-adc8-6b12ba7af516', 'pe_ratio': '17.313000', 'percentage': '30.89'}}
+Executing trade for: ANET, Simulated=False
+
+Trade for ANET failed to execute. Response: None
+
+
+Current Positions: {'BBY': {'price': '102.160000', 'quantity': '2.00000000', 'average_buy_price': '100.5500', 'equity': '204.32', 'percent_change': '1.60', 'intraday_percent_change': '1.60', 'equity_change': '3.220000', 'type': 'stock', 'name': 'Best Buy', 'id': '6d97a28c-1e6a-41f8-adc8-6b12ba7af516', 'pe_ratio': '17.313000', 'percentage': '30.89'}}
+
+Trade for BBY skipped because it's already in the portfolio.
+
+
+Current Positions: {'BBY': {'price': '102.160000', 'quantity': '2.00000000', 'average_buy_price': '100.5500', 'equity': '204.32', 'percent_change': '1.60', 'intraday_percent_change': '1.60', 'equity_change': '3.220000', 'type': 'stock', 'name': 'Best Buy', 'id': '6d97a28c-1e6a-41f8-adc8-6b12ba7af516', 'pe_ratio': '17.313000', 'percentage': '30.89'}}
+Executing trade for: PANW, Simulated=False
+
+Trade for PANW failed to execute. Response: None
+
+
+
+--- Final Portfolio Size at the End: $504.86 ---
+
+--- Current Positions ---
+
+Current Positions: {'BBY': {'price': '102.160000', 'quantity': '2.00000000', 'average_buy_price': '100.5500', 'equity': '204.32', 'percent_change': '1.60', 'intraday_percent_change': '1.60', 'equity_change': '3.220000', 'type': 'stock', 'name': 'Best Buy', 'id': '6d97a28c-1e6a-41f8-adc8-6b12ba7af516', 'pe_ratio': '17.313000', 'percentage': '30.89'}}
+
+Stock: Best Buy
+ - Quantity: 2.00000000 shares
+ - Current Price: $102.160000
+ - Average Buy Price: $100.5500
+ - Equity: $204.32
+ - Percent Change: 1.60%
+ - Equity Change: $3.220000
+
+
+--- Summary of Top Three Bullish Crossover Trades ---
+ANET: Eligible for Trade: True, Trade Made: False, Trade Amount: $168.29, Shares to Purchase: 0.48 shares, Potential Gain: $10.10, Risk: 2.00% ($10.10), ATR: 11.76 (3.33%), ATR * 2: 6.00%, Reason: Criteria met
+BBY: Eligible for Trade: True, Trade Made: False, Trade Amount: $168.29, Shares to Purchase: 1.68 shares, Potential Gain: $10.10, Risk: 2.00% ($10.10), ATR: 3.12 (3.11%), ATR * 2: 6.00%, Reason: Criteria met
+PANW: Eligible for Trade: True, Trade Made: False, Trade Amount: $168.29, Shares to Purchase: 0.46 shares, Potential Gain: $10.10, Risk: 2.00% ($10.10), ATR: 11.11 (3.06%), ATR * 2: 6.00%, Reason: Criteria met
+
+--- Portfolio Size at the End: $504.86 ---
+
+--- Total Number of Stocks Analyzed: 503 ---
+
+--- Total Possible Number of Trades Made: 0 ---
+
+--- All Possible Trades ---
+1. Stock: ANET, ATR Percent: 3.33%, Eligible: True, Trade Amount: $168.29, Risk Percent: 2.00%
+2. Stock: BBY, ATR Percent: 3.11%, Eligible: True, Trade Amount: $168.29, Risk Percent: 2.00%
+3. Stock: PANW, ATR Percent: 3.06%, Eligible: True, Trade Amount: $168.29, Risk Percent: 2.00%
+
+--- Top Three Trades ---
+1. Stock: ANET, ATR Percent: 3.33%, Eligible: True, Trade Amount: $168.29, Risk Percent: 2.00%
+2. Stock: BBY, ATR Percent: 3.11%, Eligible: True, Trade Amount: $168.29, Risk Percent: 2.00%
+3. Stock: PANW, ATR Percent: 3.06%, Eligible: True, Trade Amount: $168.29, Risk Percent: 2.00%

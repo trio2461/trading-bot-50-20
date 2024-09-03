@@ -1,9 +1,9 @@
-#utils/trading.py
+# utils/trading.py
 from utils.analysis import moving_average, calculate_atr, detect_recent_crossover, check_recent_crossovers
-from utils.api import fetch_historical_data, order_buy_market
+from utils.api import fetch_historical_data, order_buy_market, get_positions
 from utils.settings import SIMULATED, MAX_DAILY_LOSS, ATR_THRESHOLDS, PHONE_NUMBER
 from utils.send_message import send_text_message
-from utils.trade_state import TradeState, fetch_open_orders, calculate_current_risk, get_open_trades
+from utils.trade_state import TradeState,calculate_current_risk, get_open_trades
 from termcolor import colored  # Import termcolor for colored output
 
 def is_market_open():
@@ -14,7 +14,6 @@ def is_market_open():
     return market_open <= now <= market_close
 
 def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULATED, atr_thresholds=ATR_THRESHOLDS):
-    print(f"\n--- Analyzing {stock} ---")
     historicals = fetch_historical_data(stock)
     
     if not historicals or len(historicals) < 50:  # Ensure enough data for moving averages
@@ -26,12 +25,15 @@ def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULA
     ma_50 = moving_average(closing_prices, 50)
     
     crossover_signal = detect_recent_crossover(ma_20[-len(ma_50):], ma_50, days=5)
-    print(f"Crossover Signal: {crossover_signal}")
     
     atr = calculate_atr(historicals)
     atr_percent = (atr / closing_prices[-1]) * 100 if closing_prices[-1] != 0 else 0
     share_price = closing_prices[-1]  # Latest share price
-    print(f"ATR: {atr:.2f} ({atr_percent:.2f}% of the stock price)")
+    
+    # Filter out stocks with an ATR percent less than 3%
+    if atr_percent < 3.0:
+        print(f"{stock} skipped due to ATR percent being less than 3% ({atr_percent:.2f}%).")
+        return False
     
     # Classify ATR into 3%, 4%, or 5%
     if atr_percent < 3.5:
@@ -40,196 +42,119 @@ def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULA
         classified_atr_percent = 4.0
     else:
         classified_atr_percent = 5.0
+
+    # Only consider trades if the crossover is bullish and the ATR is within the desired range
+    if crossover_signal == "Bullish Crossover" and classified_atr_percent in atr_thresholds:
+        print(f"Eligible Bullish Crossover found for {stock} with Classified ATR: {classified_atr_percent}%")
         
-    if classified_atr_percent == 5.0:
-        print(colored(f"Classified ATR: {classified_atr_percent}% of the stock price", "green"))
+        # Calculate purchase amount based on the classified ATR
+        two_atr = 2 * (classified_atr_percent / 100)
+        purchase_amount = (0.02 * portfolio_size) / two_atr
+        shares_to_purchase = purchase_amount / share_price  # Calculate the number of shares
+        potential_loss = purchase_amount * two_atr
+        potential_gain = potential_loss  # 1:1 risk-reward ratio
+        risk_percent = (potential_loss / portfolio_size) * 100  # Calculate risk percentage of the portfolio
+
+        # Ensure the risk and portfolio limits are not exceeded
+        if potential_loss <= portfolio_size * 0.02 and current_risk + potential_loss <= MAX_DAILY_LOSS * portfolio_size:
+            results.append({
+                'Stock': stock,
+                'ATR': atr,
+                'ATR Percent': atr_percent,
+                'ATR * 2': two_atr * 100,  # Include ATR * 2 in the results
+                'Share Price': share_price,
+                'Eligible for Trade': True,
+                'Trade Made': False,  # Initially mark as not attempted
+                'Order Status': "Not Attempted",  # Add order status
+                'Order ID': None,
+                'Trade Amount': purchase_amount,
+                'Shares to Purchase': shares_to_purchase,
+                'Potential Gain': potential_gain,
+                'Risk Percent': risk_percent,
+                'Risk Dollar': potential_loss,
+                'Reason': "Criteria met"
+            })
+            current_risk += potential_loss  # Update the current risk right after adding a valid trade
+            print(f"Adding eligible trade for {stock}.")
+        else:
+            print(f"Skipping {stock} due to risk exceeding limits.")
     else:
-        print(f"Classified ATR: {classified_atr_percent}% of the stock price")
+        # Print only if the stock had a crossover but didn't meet other criteria
+        if crossover_signal == "Bullish Crossover":
+            print(f"{stock} had a Bullish Crossover but was not eligible due to ATR or risk criteria.\n")
 
-    # Calculate purchase amount based on the classified ATR
-    two_atr = 2 * (classified_atr_percent / 100)
-    purchase_amount = (0.02 * portfolio_size) / two_atr
-    shares_to_purchase = purchase_amount / share_price  # Calculate the number of shares
-    print(f"Purchase Amount: ${purchase_amount:.2f} based on 2 * ATR: {two_atr * 100:.2f}%")
-    print(f"Share Price: ${share_price:.2f}, Purchase Amount in Shares: {shares_to_purchase:.2f} shares")
-    
-    if not check_recent_crossovers(stock, ma_20, ma_50):
-        print(f"{stock} skipped due to recent conflicting crossovers.")
-        return False
-    
-    eligible_for_trade = False
-    trade_made = False
-    order_status = None  # Initialize order_status variable
-    order_id = None  # Initialize order_id variable
-    potential_loss = purchase_amount * two_atr
-    potential_gain = potential_loss  # 1:1 risk-reward ratio
-    
-    risk_percent = (potential_loss / portfolio_size) * 100  # Calculate risk percentage of the portfolio
+    return True  # Return True to indicate the stock was analyzed
 
-    if classified_atr_percent < atr_thresholds[0] or classified_atr_percent > atr_thresholds[-1]:
-        print(f"{stock} skipped due to ATR not within the acceptable range ({atr_thresholds}).")
+
+def execute_trade(trade, portfolio_size, current_risk, simulated):
+    positions = get_positions()
+    if trade['Stock'] in positions:
+        print(f"\nTrade for {trade['Stock']} skipped because it's already in the portfolio.")
         return False
 
-    if potential_loss > portfolio_size * 0.02 or current_risk + potential_loss > MAX_DAILY_LOSS * portfolio_size:
-        print(f"Skipping {stock} due to risk exceeding limits.")
+    # Calculate potential new risk
+    new_risk_percent = (trade['Risk Dollar'] / portfolio_size) * 100
+    total_risk_after_trade = current_risk + new_risk_percent
+
+    if total_risk_after_trade > (MAX_DAILY_LOSS * 100):
+        print(f"Trade for {trade['Stock']} skipped due to exceeding max risk limits.")
         return False
+
+    # Proceed to execute the trade
+    print(f'\nExecuting trade for: {trade["Stock"]}, Simulated={simulated}\n')
     
-    if crossover_signal == "Bullish Crossover":
-        eligible_for_trade = True
-        if is_market_open() and not simulated:
-            # Execute live trade
-            order_result = order_buy_market(stock, int(shares_to_purchase))
-            if order_result:
-                # Check if the trade was actually filled
+    if is_market_open() and not simulated:
+        order_result = order_buy_market(trade['Stock'], int(trade['Shares to Purchase']))
+        if isinstance(order_result, dict):
+            order_id = order_result.get('id')
+            if order_id:
+                order_status = check_order_status(order_id)
+                if order_status == 'filled':
+                    trade['Trade Made'] = True
+                    trade['Order Status'] = order_status
+                    trade['Order ID'] = order_id
+                    current_risk += new_risk_percent  # Update current risk
+                    print(f"Trade executed for {trade['Stock']}. Order ID: {order_id}")
+                    return True
+                else:
+                    print(f"Trade for {trade['Stock']} was not filled. Order status: {order_status}")
+                    return False
+            else:
+                print(f"Order for {trade['Stock']} failed to create properly.")
+                return False
+        else:
+            print(f"Trade for {trade['Stock']} failed to execute. Response: {order_result}")
+            return False
+    else:
+        print(f"Simulated or out-of-hours trade for {trade['Stock']}.")
+        trade['Trade Made'] = True
+        trade['Order Status'] = "Simulated"
+        trade['Order ID'] = "SIM12345"
+        current_risk += new_risk_percent
+        return True
+
+
+def check_and_execute_sells(open_trades, portfolio_size):
+    for trade in open_trades:
+        current_price = float(r.stocks.get_latest_price(trade.symbol)[0])
+        target_sell_price = trade.price + (trade.price * trade.risk / trade.quantity)  # Assuming risk is calculated using ATR * 2
+        
+        if current_price >= target_sell_price:
+            # Sell the stock
+            print(f"Selling {trade.quantity} shares of {trade.symbol} at {current_price}")
+            order_result = r.orders.order_sell_market(trade.symbol, trade.quantity)
+            
+            if isinstance(order_result, dict):  # Check if order_result is a dictionary
                 order_id = order_result.get('id')
                 if order_id:
-                    order_status = check_order_status(order_id)
-                    trade_state = TradeState(stock, int(shares_to_purchase), share_price, order_id, "buy", order_status, simulated)
-                    if order_status == 'filled':
-                        trade_made = True
-                        current_risk += potential_loss  # Apply the risk only if the trade is made
-                        print(f"Trade executed for {stock}. Order ID: {order_id}")
-                    else:
-                        print(f"Trade for {stock} was not filled. Order status: {order_status}")
+                    print(f"Sold {trade.symbol} successfully. Order ID: {order_id}")
                 else:
-                    print(f"Order for {stock} failed to create properly.")
+                    print(f"Sell order for {trade.symbol} failed to create properly.")
             else:
-                print(f"Trade for {stock} failed to execute.")
-        else:
-            # Simulate or record out-of-hours trade
-            print(f"Simulated or out-of-hours trade for {stock}.")
-            trade_made = True
-            current_risk += potential_loss  # Apply the risk in simulation as well
-
-    # Record the result with proper flags
-    results.append({
-        'Stock': stock,
-        'ATR': atr,
-        'ATR Percent': atr_percent,
-        'ATR * 2': two_atr * 100,  # Include ATR * 2 in the results
-        'Share Price': share_price,
-        'Eligible for Trade': eligible_for_trade,
-        'Trade Made': trade_made,
-        'Order ID': order_id,  # Include order ID in the results
-        'Order Status': order_status if trade_made else "Not Attempted",  # Add order status
-        'Trade Amount': purchase_amount,
-        'Shares to Purchase': shares_to_purchase,
-        'Potential Gain': potential_gain,
-        'Risk Percent': risk_percent,
-        'Risk Dollar': potential_loss,
-        'Reason': "Criteria met" if eligible_for_trade else "Criteria not met"
-    })
-
-    return trade_made  # Return whether a trade was actually made
+                print(f"Failed to sell {trade.symbol}. Response: {order_result}")
 
 
-# def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULATED, atr_thresholds=ATR_THRESHOLDS):
-#     print(f"\n--- Analyzing {stock} ---")
-#     historicals = fetch_historical_data(stock)
-    
-#     if not historicals or len(historicals) < 50:  # Ensure enough data for moving averages
-#         print(f"Not enough data for {stock}. Skipping...")
-#         return False
-    
-#     closing_prices = [float(day['close_price']) for day in historicals]
-#     ma_20 = moving_average(closing_prices, 20)
-#     ma_50 = moving_average(closing_prices, 50)
-    
-#     crossover_signal = detect_recent_crossover(ma_20[-len(ma_50):], ma_50, days=5)
-#     print(f"Crossover Signal: {crossover_signal}")
-    
-#     atr = calculate_atr(historicals)
-#     atr_percent = (atr / closing_prices[-1]) * 100 if closing_prices[-1] != 0 else 0
-#     share_price = closing_prices[-1]  # Latest share price
-#     print(f"ATR: {atr:.2f} ({atr_percent:.2f}% of the stock price)")
-    
-#     # Classify ATR into 3%, 4%, or 5%
-#     if atr_percent < 3.5:
-#         classified_atr_percent = 3.0
-#     elif atr_percent < 4.5:
-#         classified_atr_percent = 4.0
-#     else:
-#         classified_atr_percent = 5.0
-        
-#     if classified_atr_percent == 5.0:
-#         print(colored(f"Classified ATR: {classified_atr_percent}% of the stock price", "green"))
-#     else:
-#         print(f"Classified ATR: {classified_atr_percent}% of the stock price")
-
-#     # Calculate purchase amount based on the classified ATR
-#     two_atr = 2 * (classified_atr_percent / 100)
-#     purchase_amount = (0.02 * portfolio_size) / two_atr
-#     shares_to_purchase = purchase_amount / share_price  # Calculate the number of shares
-#     print(f"Purchase Amount: ${purchase_amount:.2f} based on 2 * ATR: {two_atr * 100:.2f}%")
-#     print(f"Share Price: ${share_price:.2f}, Purchase Amount in Shares: {shares_to_purchase:.2f} shares")
-    
-#     if not check_recent_crossovers(stock, ma_20, ma_50):
-#         print(f"{stock} skipped due to recent conflicting crossovers.")
-#         return False
-    
-#     eligible_for_trade = False
-#     trade_made = False
-#     potential_loss = purchase_amount * two_atr
-#     potential_gain = potential_loss  # 1:1 risk-reward ratio
-    
-#     risk_percent = (potential_loss / portfolio_size) * 100  # Calculate risk percentage of the portfolio
-
-#     if classified_atr_percent < atr_thresholds[0] or classified_atr_percent > atr_thresholds[-1]:
-#         print(f"{stock} skipped due to ATR not within the acceptable range ({atr_thresholds}).")
-#         return False
-
-#     if potential_loss > portfolio_size * 0.02 or current_risk + potential_loss > MAX_DAILY_LOSS * portfolio_size:
-#         print(f"Skipping {stock} due to risk exceeding limits.")
-#         return False
-    
-#     if crossover_signal == "Bullish Crossover":
-#         eligible_for_trade = True
-#         if is_market_open() and not simulated:
-#             # Execute live trade
-#             order_result = order_buy_market(stock, int(shares_to_purchase))
-#             if order_result:
-#                 # Check if the trade was actually filled
-#                 order_id = order_result.get('id')
-#                 if order_id:
-#                     order_status = check_order_status(order_id)
-#                     trade_state = TradeState(stock, int(shares_to_purchase), share_price, order_id, "buy", order_status, simulated)
-#                     if order_status == 'filled':
-#                         trade_made = True
-#                         current_risk += potential_loss  # Apply the risk only if the trade is made
-#                         print(f"Trade executed for {stock}. Order ID: {order_id}")
-#                     else:
-#                         print(f"Trade for {stock} was not filled. Order status: {order_status}")
-#                 else:
-#                     print(f"Order for {stock} failed to create properly.")
-#             else:
-#                 print(f"Trade for {stock} failed to execute.")
-#         else:
-#             # Simulate or record out-of-hours trade
-#             print(f"Simulated or out-of-hours trade for {stock}.")
-#             trade_made = True
-#             current_risk += potential_loss  # Apply the risk in simulation as well
-
-
-#     # Record the result with proper flags
-#     results.append({
-#         'Stock': stock,
-#         'ATR': atr,
-#         'ATR Percent': atr_percent,
-#         'ATR * 2': two_atr * 100,  # Include ATR * 2 in the results
-#         'Share Price': share_price,
-#         'Eligible for Trade': eligible_for_trade,
-#         'Trade Made': trade_made,
-#         'Order Status': order_status if trade_made else "Not Attempted",  # Add order status
-#         'Trade Amount': purchase_amount,
-#         'Shares to Purchase': shares_to_purchase,
-#         'Potential Gain': potential_gain,
-#         'Risk Percent': risk_percent,
-#         'Risk Dollar': potential_loss,
-#         'Reason': "Criteria met" if eligible_for_trade else "Criteria not met"
-#     })
-
-#     return trade_made  # Return whether a trade was actually made
-
+# Fixing the summary report to correctly reflect current risk
 def send_trade_summary(top_trades, portfolio_size, current_risk, open_trades, simulated=SIMULATED):
     summary_message = "\n--- Trade Summary ---\n"
     

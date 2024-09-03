@@ -1,3 +1,4 @@
+# utils/send_message.py
 from utils.settings import PHONE_NUMBER
 import subprocess
 
@@ -10,4 +11,3 @@ def send_text_message(message, phone_number=PHONE_NUMBER):
     end tell
     '''
     subprocess.run(['osascript', '-e', applescript_command])
-

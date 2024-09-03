@@ -4,20 +4,6 @@
 def moving_average(data, period):
     return [sum(data[i:i+period])/period for i in range(len(data)-period+1)]
 
-# Calculate the Average True Range (ATR)
-# def calculate_atr(historicals, period=14):
-#     tr_list = []
-#     for i in range(1, len(historicals)):
-#         high_low = float(historicals[i]['high_price']) - float(historicals[i]['low_price'])
-#         high_close = abs(float(historicals[i]['high_price']) - float(historicals[i-1]['close_price']))
-#         low_close = abs(float(historicals[i]['low_price']) - float(historicals[i-1]['close_price']))
-#         true_range = max(high_low, high_close, low_close)
-#         tr_list.append(true_range)
-#     atr = sum(tr_list[-period:]) / period
-#     return atr
-
-
-# utils/analysis.py
 
 def calculate_atr(historicals, period=14):
     tr_list = []
