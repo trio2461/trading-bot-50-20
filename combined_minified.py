@@ -208,7 +208,6 @@ def main():
     logger.log_top_trades(top_trades)
     logger.log_all_possible_trades(results)
     logger.log_top_three_trades(top_trades)
-    check_and_execute_sells(open_trades, portfolio_size)
 if __name__ == "__main__":
     main()
 
@@ -447,48 +446,6 @@ def is_market_open():
     market_open = time(9, 30)
     market_close = time(16, 0)
     return market_open <= now <= market_close
-trades_in_consideration = {}
-def format_shares_price(symbol, shares, price):
-    return f"Selling {shares:.4f} shares of {symbol} at {price:.2f}"
-def execute_sell_order(symbol, shares, limit_price, stop_price, reason):
-    try:
-        print(f"Placing stop-limit sell order for {symbol} - {shares:.4f} shares with stop price {stop_price:.2f} and limit price {limit_price:.2f}. Reason: {reason}")
-        order_result = r.orders.order_sell_stop_limit(
-            symbol=symbol,
-            quantity=shares,
-            limitPrice=limit_price,
-            stopPrice=stop_price,
-            timeInForce='gtc'  
-        )
-        if isinstance(order_result, dict) and 'id' in order_result:
-            order_id = order_result.get('id')
-            print(f"Order ID: {order_id} for {symbol} placed successfully.")
-            trades_in_consideration[symbol]['trade_made'] = True
-            trades_in_consideration[symbol]['sell_reason'] = reason
-            trades_in_consideration[symbol]['sell_price'] = limit_price
-            print(f"{format_shares_price(symbol, shares, limit_price)}\nReason: {reason}.")
-        else:
-            print(f"Failed to create stop-limit sell order for {symbol}. Response: {order_result}")
-            print("Attempting fallback market sell order...")
-            fallback_order = r.orders.order_sell_market(symbol, shares)
-            if isinstance(fallback_order, dict) and 'id' in fallback_order:
-                fallback_order_id = fallback_order.get('id')
-                print(f"Market sell order for {symbol} successfully placed. Order ID: {fallback_order_id}")
-            else:
-                print(f"Failed to create fallback market sell order for {symbol}. Response: {fallback_order}")
-    except Exception as e:
-        print(f"Error placing sell order for {symbol}: {e}")
-def check_and_execute_sells():
-    for stock, trade_info in trades_in_consideration.items():
-        if not trade_info['trade_made']:
-            continue  
-        latest_price = float(r.stocks.get_latest_price(stock)[0])
-        if latest_price >= trade_info['reward_sell_price']:
-            print(f"Triggered take profit: {format_shares_price(stock, trade_info['shares_to_purchase'], latest_price)}")
-            execute_sell_order(stock, trade_info['shares_to_purchase'], trade_info['reward_sell_price'], trade_info['buy_price'], 'Take Profit')
-        elif latest_price <= trade_info['risk_sell_price']:
-            print(f"Triggered stop loss: {format_shares_price(stock, trade_info['shares_to_purchase'], latest_price)}")
-            execute_sell_order(stock, trade_info['shares_to_purchase'], trade_info['risk_sell_price'], trade_info['buy_price'], 'Stop Loss')
 def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULATED, atr_thresholds=ATR_THRESHOLDS):
     historicals = fetch_historical_data(stock)
     if not historicals or len(historicals) < 50:  
@@ -512,47 +469,38 @@ def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULA
         classified_atr_percent = 5.0
     if crossover_signal == "Bullish Crossover" and classified_atr_percent in atr_thresholds:
         print(f"Eligible Bullish Crossover found for {stock} with Classified ATR: {classified_atr_percent}%")
-        two_atr = 2 * (classified_atr_percent / 100)  
+        two_atr = 2 * (classified_atr_percent / 100)
         purchase_amount = (0.02 * portfolio_size) / two_atr
         shares_to_purchase = purchase_amount / share_price  
         potential_loss = purchase_amount * two_atr
         potential_gain = potential_loss  
-        reward_sell_price = share_price + potential_gain
-        risk_sell_price = share_price - potential_loss
-        trades_in_consideration[stock] = {
-            'trade_amount': purchase_amount,
-            'shares_to_purchase': shares_to_purchase,
-            'potential_gain': potential_gain,  
-            'risk_dollar': potential_loss,     
-            'atr': atr,
-            'trade_made': False,
-            'buy_price': share_price,
-            'reward_sell_price': reward_sell_price,  
-            'risk_sell_price': risk_sell_price       
-        }
-        results.append({
-            'Stock': stock,
-            'ATR': atr,
-            'ATR Percent': atr_percent,
-            'ATR * 2': two_atr * 100,  
-            'Share Price': share_price,
-            'Eligible for Trade': True,
-            'Trade Made': False,  
-            'Order Status': "Not Attempted",  
-            'Order ID': None,
-            'Trade Amount': purchase_amount,
-            'Shares to Purchase': shares_to_purchase,
-            'Potential Gain': potential_gain,
-            'Risk Percent': (potential_loss / portfolio_size) * 100,
-            'Risk Dollar': potential_loss,
-            'Reason': "Criteria met"
-        })
-        print(f"Adding eligible trade for {stock} with reward at {reward_sell_price} and risk at {risk_sell_price}.")
-        return True
+        risk_percent = (potential_loss / portfolio_size) * 100  
+        if potential_loss <= portfolio_size * 0.02 and current_risk + potential_loss <= MAX_DAILY_LOSS * portfolio_size:
+            results.append({
+                'Stock': stock,
+                'ATR': atr,
+                'ATR Percent': atr_percent,
+                'ATR * 2': two_atr * 100,  
+                'Share Price': share_price,
+                'Eligible for Trade': True,
+                'Trade Made': False,  
+                'Order Status': "Not Attempted",  
+                'Order ID': None,
+                'Trade Amount': purchase_amount,
+                'Shares to Purchase': shares_to_purchase,
+                'Potential Gain': potential_gain,
+                'Risk Percent': risk_percent,
+                'Risk Dollar': potential_loss,
+                'Reason': "Criteria met"
+            })
+            current_risk += potential_loss  
+            print(f"Adding eligible trade for {stock}.")
+        else:
+            print(f"Skipping {stock} due to risk exceeding limits.")
     else:
         if crossover_signal == "Bullish Crossover":
             print(f"{stock} had a Bullish Crossover but was not eligible due to ATR or risk criteria.\n")
-    return False
+    return True  
 def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
     positions = get_positions()
     if trade['Stock'] in positions:
