@@ -1,8 +1,18 @@
-# quick_test.py
+from dotenv import load_dotenv
+import os
 import robin_stocks.robinhood as r
 
+# Load environment variables from .env file
+load_dotenv()
+
 def login_to_robinhood():
-    r.login(username="your_username", password="your_password")
+    username = os.getenv('ROBINHOOD_USERNAME')
+    password = os.getenv('ROBINHOOD_PASSWORD')
+    
+    if not username or not password:
+        raise Exception("ROBINHOOD_USERNAME or ROBINHOOD_PASSWORD not found in the environment variables.")
+    
+    r.login(username=username, password=password)
 
 def get_account_info():
     account_info = r.profiles.load_account_profile()
@@ -19,7 +29,7 @@ def get_positions():
     print("Current Positions:")
     print(positions)
 
-def get_open_positions():  # Renamed from get_open_orders
+def get_open_positions():
     open_positions = r.account.get_open_stock_positions()
     print("Open Positions:")
     print(open_positions)
