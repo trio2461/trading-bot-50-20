@@ -2,6 +2,7 @@
 from dotenv import load_dotenv
 import os
 import robin_stocks.robinhood as r
+from utils.account_data import global_account_data, update_global_account_data
 load_dotenv()
 def login_to_robinhood():
     username = os.getenv('ROBINHOOD_USERNAME')
@@ -25,9 +26,30 @@ def get_open_positions():
     open_positions = r.account.get_open_stock_positions()
     print("Open Positions:")
     print(open_positions)
+def get_open_orders():
+    open_orders = r.orders.get_all_open_stock_orders()
+    print("Raw Open Orders Data:")
+    print(open_orders)  
+    if open_orders:
+        print("Open Order IDs:")
+        for order in open_orders:
+            if 'id' in order:
+                print(order['id'])  
+            else:
+                print("No 'id' found for order:", order)  
+    else:
+        print("No open orders found.")
+def test_print_global_account_data():
+    import json
+    print("Account Info:")
+    print(json.dumps(global_account_data['account_info'], indent=4))
+    print("\nPortfolio Info:")
+    print(json.dumps(global_account_data['portfolio_info'], indent=4))
+    print("\nPositions:")
+    print(json.dumps(global_account_data['positions'], indent=4))
 if __name__ == "__main__":
     login_to_robinhood()
-    get_open_positions()
+    test_print_global_account_data()
 
 # data_loader.py
 from utils.api import sanitize_ticker_symbols
@@ -59,16 +81,86 @@ def load_csv_data(file_path, exchange):
     else:
         raise ValueError("Unsupported exchange. Please use 'nasdaq' or 'sp500'.")
 
+# logger.py
+from termcolor import colored
+from datetime import datetime
+import json  
+def log_initial_risk(current_risk_percent, max_allowed_risk, risk_available_for_new_trades):
+    print(colored(f"\nInitial Risk (from open positions): {current_risk_percent:.2f}% of Portfolio", 'yellow'))
+    print(colored(f"Max Allowed Risk: {max_allowed_risk:.2f}% of Portfolio", 'yellow'))
+    print(colored(f"Risk Available for New Trades: ${risk_available_for_new_trades:.2f}", 'yellow'))
+def log_analysis_summary(results):
+    print(colored("\n--- Analysis Summary ---", 'yellow'))
+    for result in results:
+        print(f"{result['Stock']}: {colored('Eligible for Trade:', 'blue')} {result['Eligible for Trade']}, "
+              f"ATR Percent: {colored(f'{result['ATR Percent']:.2f}%', 'cyan')}, "
+              f"Reason: {result['Reason']}")
+def log_trade_execution_skipped(stock, reason):
+    print(colored(f"Trade for {stock} skipped due to {reason}.", 'red'))
+def log_trade_execution_success(stock, current_risk_percent, risk_available_for_new_trades):
+    print(f"Updated Risk after trade: {current_risk_percent:.2f}% of Portfolio")
+    print(f"Risk Available for New Trades: ${risk_available_for_new_trades:.2f}")
+def log_final_portfolio_size(portfolio_size):
+    print(colored(f"\n--- Final Portfolio Size at the End: ${portfolio_size:.2f} ---", 'cyan'))
+def log_current_positions(positions):
+    print("\n--- Current Positions ---\n")
+    if positions:
+        print("Complete positions dictionary before modification:")
+        print(json.dumps(positions, indent=4))  
+        for symbol, data in positions.items():
+            if 'purchase_date' in data:
+                try:
+                    days_held = (datetime.now() - datetime.strptime(data['purchase_date'], "%Y-%m-%d")).days
+                except ValueError:
+                    days_held = 0  
+            else:
+                days_held = 0
+            positions[symbol]['days_held'] = days_held
+            print(f"{colored('Stock:', 'cyan')} {colored(data['name'], 'yellow')}")
+            quantity = float(data['quantity'])
+            print(f" - {colored('Quantity:', 'blue')} {colored(f'{quantity:.8f}', 'magenta')} shares")
+            price = float(data['price'])
+            print(f" - {colored('Current Price:', 'blue')} {colored(f'${price:.2f}', 'green')}")
+            print(f" - {colored('Average Buy Price:', 'blue')} {colored(f'${float(data['average_buy_price']):.4f}', 'green')}")
+            print(f" - {colored('Equity:', 'blue')} {colored(f'${float(data['equity']):.2f}', 'green')}")
+            print(f" - {colored('Percent Change:', 'blue')} {colored(f'{float(data['percent_change']):.2f}%', 'green')}")
+            print(f" - {colored('Equity Change:', 'blue')} {colored(f'${float(data['equity_change']):.6f}', 'green')}")
+            print(f" - {colored('Days Held:', 'blue')} {colored(f'{days_held}', 'green')} days\n")
+        print("Complete positions dictionary after modification (with days_held):")
+        print(json.dumps(positions, indent=4))  
+    else:
+        print("No positions found.")
+def log_top_trades(top_trades):
+    print(colored("\n--- Summary of Top Three Bullish Crossover Trades ---", 'yellow'))
+    for result in top_trades:
+        print(f"{result['Stock']}: {colored('Eligible for Trade:', 'blue')} {result['Eligible for Trade']}, {colored('Trade Made:', 'blue')} {result['Trade Made']}, "
+              f"Trade Amount: ${result['Trade Amount']:.2f}, Shares to Purchase: {result['Shares to Purchase']:.2f} shares, "
+              f"Potential Gain: ${result['Potential Gain']:.2f}, Risk: {result['Risk Percent']:.2f}% (${result['Risk Dollar']:.2f}), "
+              f"ATR: {result['ATR']:.2f} ({result['ATR Percent']:.2f}%), ATR * 2: {result['ATR * 2']:.2f}%, Reason: {result['Reason']}")
+def log_all_possible_trades(results):
+    print(colored("\n--- All Possible Trades ---", 'green'))
+    for idx, trade in enumerate(results, start=1):
+        print(f"{idx}. Stock: {colored(trade['Stock'], 'yellow')}, ATR Percent: {colored(f'{trade['ATR Percent']:.2f}%', 'cyan')}, "
+              f"Eligible: {colored(trade['Eligible for Trade'], 'blue')}, Trade Amount: {colored(f'${trade['Trade Amount']:.2f}', 'magenta')}, "
+              f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
+def log_top_three_trades(top_trades):
+    print(colored("\n--- Top Three Trades ---", 'yellow'))
+    for idx, trade in enumerate(top_trades, start=1):
+        print(f"{idx}. Stock: {colored(trade['Stock'], 'yellow')}, ATR Percent: {colored(f'{trade['ATR Percent']:.2f}%', 'cyan')}, "
+              f"Eligible: {colored(trade['Eligible for Trade'], 'blue')}, Trade Amount: {colored(f'${trade['Trade Amount']:.2f}', 'magenta')}, "
+              f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
+
 # bot.py
 from utils.api import get_top_movers, load_csv_data, sanitize_ticker_symbols
 from utils.account_data import global_account_data, update_global_account_data
 from utils.trading import analyze_stock, send_trade_summary, execute_trade, check_and_execute_sells
 from utils.trade_state import calculate_current_risk, get_open_trades
-from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE, MAX_DAILY_LOSS, USE_CSV_DATA, USE_NASDAQ_DATA, USE_SP500_DATA, ATR_THRESHOLDS  
+from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE, MAX_DAILY_LOSS, USE_CSV_DATA, ATR_THRESHOLDS  
 from data_loader import load_stock_symbols  
-from termcolor import colored
 import robin_stocks.robinhood as r
 from tqdm import tqdm
+import logger  
+import json
 def main():
     update_global_account_data()
     simulated = SIMULATED  
@@ -93,63 +185,57 @@ def main():
             progress_bar.update(1)  
             if not eligible_for_trade:
                 tqdm.write(f"{stock} skipped due to ATR percent being less than 3%.")
-    print(colored(f"\nInitial Risk (from open positions): {current_risk_percent:.2f}% of Portfolio", 'yellow'))
-    print(colored(f"Max Allowed Risk: {MAX_DAILY_LOSS * 100:.2f}% of Portfolio", 'yellow'))
-    print(colored(f"Risk Available for New Trades: ${risk_available_for_new_trades:.2f}", 'yellow'))
-    print(colored("\n--- Analysis Summary ---", 'yellow'))
-    for result in results:
-        print(f"{result['Stock']}: {colored('Eligible for Trade:', 'blue')} {result['Eligible for Trade']}, "
-              f"ATR Percent: {colored(f'{result['ATR Percent']:.2f}%', 'cyan')}, "
-              f"Reason: {result['Reason']}")
+    logger.log_initial_risk(current_risk_percent, MAX_DAILY_LOSS * 100, risk_available_for_new_trades)
+    logger.log_analysis_summary(results)
     results.sort(key=lambda x: x['ATR Percent'], reverse=True)
     top_trades = [trade for trade in results if trade['Eligible for Trade']][:3]
     for trade in top_trades:
         if current_risk_percent >= MAX_DAILY_LOSS * 100:
-            print(colored(f"Daily loss limit exceeded. No more trades will be made.", 'red'))
+            logger.log_trade_execution_skipped(trade['Stock'], "exceeding daily loss limit")
             break
         elif trade['Risk Dollar'] > risk_available_for_new_trades:
-            print(colored(f"Trade for {trade['Stock']} skipped due to insufficient risk allowance.", 'red'))
+            logger.log_trade_execution_skipped(trade['Stock'], "insufficient risk allowance")
             continue
         trade_made = execute_trade(trade, portfolio_size, current_risk_percent, simulated)
         if trade_made:
             new_risk_percent = (trade['Risk Dollar'] / portfolio_size) * 100
             current_risk_percent += new_risk_percent
             risk_available_for_new_trades -= trade['Risk Dollar']
-            print(f"Updated Risk after trade: {current_risk_percent:.2f}% of Portfolio")
-            print(f"Risk Available for New Trades: ${risk_available_for_new_trades:.2f}")
-    print(colored(f"\n--- Final Portfolio Size at the End: ${portfolio_size:.2f} ---", 'cyan'))
-    print("\n--- Current Positions ---\n")
-    positions = global_account_data['positions']
-    if positions:
-        for symbol, data in positions.items():
-            print(f"\nStock: {data['name']}")
-            print(f" - Quantity: {data['quantity']} shares")
-            print(f" - Current Price: ${data['price']}")
-            print(f" - Average Buy Price: ${data['average_buy_price']}")
-            print(f" - Equity: ${data['equity']}")
-            print(f" - Percent Change: {data['percent_change']}%")
-            print(f" - Equity Change: ${data['equity_change']}\n")
-    else:
-        print("No positions found.")
+            logger.log_trade_execution_success(trade['Stock'], current_risk_percent, risk_available_for_new_trades)
+    logger.log_final_portfolio_size(portfolio_size)
+    logger.log_current_positions(global_account_data['positions'])
     send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades)
-    print(colored("\n--- Summary of Top Three Bullish Crossover Trades ---", 'yellow'))
-    for result in top_trades:
-        print(f"{result['Stock']}: {colored('Eligible for Trade:', 'blue')} {result['Eligible for Trade']}, {colored('Trade Made:', 'blue')} {result['Trade Made']}, Trade Amount: ${result['Trade Amount']:.2f}, Shares to Purchase: {result['Shares to Purchase']:.2f} shares, Potential Gain: ${result['Potential Gain']:.2f}, Risk: {result['Risk Percent']:.2f}% (${result['Risk Dollar']:.2f}), ATR: {result['ATR']:.2f} ({result['ATR Percent']:.2f}%), ATR * 2: {result['ATR * 2']:.2f}%, Reason: {result['Reason']}")
-    print(colored(f"\n--- Portfolio Size at the End: ${portfolio_size:.2f} ---", 'cyan'))
-    print(colored(f"\n--- Total Number of Stocks Analyzed: {total_stocks_analyzed} ---", 'cyan'))
-    print(colored(f"\n--- Total Possible Number of Trades Made: {total_trades_made} ---", 'cyan'))
-    print(colored("\n--- All Possible Trades ---", 'green'))
-    for idx, trade in enumerate(results, start=1):
-        print(f"{idx}. Stock: {colored(trade['Stock'], 'yellow')}, ATR Percent: {colored(f'{trade['ATR Percent']:.2f}%', 'cyan')}, "
-              f"Eligible: {colored(trade['Eligible for Trade'], 'blue')}, Trade Amount: {colored(f'${trade['Trade Amount']:.2f}', 'magenta')}, "
-              f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
-    print(colored("\n--- Top Three Trades ---", 'yellow'))
-    for idx, trade in enumerate(top_trades, start=1):
-        print(f"{idx}. Stock: {colored(trade['Stock'], 'yellow')}, ATR Percent: {colored(f'{trade['ATR Percent']:.2f}%', 'cyan')}, "
-              f"Eligible: {colored(trade['Eligible for Trade'], 'blue')}, Trade Amount: {colored(f'${trade['Trade Amount']:.2f}', 'magenta')}, "
-              f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
+    logger.log_top_trades(top_trades)
+    logger.log_all_possible_trades(results)
+    logger.log_top_three_trades(top_trades)
+    check_and_execute_sells(open_trades, portfolio_size)
 if __name__ == "__main__":
     main()
+
+# bot_schedule.py
+import schedule
+import time
+import logging
+import signal
+import sys
+from bot import main
+logging.basicConfig(filename='bot_schedule.log', level=logging.INFO)
+def job():
+    try:
+        logging.info("Running scheduled bot job...")
+        main()  
+    except Exception as e:
+        logging.error(f"Error during scheduled job: {e}")
+def signal_handler(sig, frame):
+    logging.info("Received termination signal. Shutting down...")
+    sys.exit(0)
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+schedule.every(1).minute.do(job)
+logging.info("Scheduler started...")
+while True:
+    schedule.run_pending()
+    time.sleep(1)
 
 # gpt.py
 import os
@@ -205,46 +291,6 @@ def close_all_positions():
 if __name__ == "__main__":
     login_to_robinhood()
     close_all_positions()
-
-# setup_cron.py
-import os
-import subprocess
-import sys
-current_directory = os.path.dirname(os.path.abspath(__file__))
-python_path = os.path.join(current_directory, "env/bin/python")
-script_path = os.path.join(current_directory, "bot.py")
-log_path = os.path.join(current_directory, "error_log.txt")
-cron_command = f"30 9-16 * * 1-5 {python_path} {script_path} >> {log_path} 2>&1"
-def setup_cron_job():
-    result = subprocess.run(['crontab', '-l'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    current_crontab = result.stdout
-    if cron_command not in current_crontab:
-        with open('my_crontab', 'w') as f:
-            if current_crontab:
-                f.write(current_crontab)
-            f.write(cron_command + '\n')
-        subprocess.run(['crontab', 'my_crontab'])
-        os.remove('my_crontab')
-        print("Cron job added successfully.")
-    else:
-        print("Cron job already exists.")
-def remove_cron_job():
-    result = subprocess.run(['crontab', '-l'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    current_crontab = result.stdout
-    if cron_command in current_crontab:
-        new_crontab = current_crontab.replace(cron_command + '\n', '')
-        with open('my_crontab', 'w') as f:
-            f.write(new_crontab)
-        subprocess.run(['crontab', 'my_crontab'])
-        os.remove('my_crontab')
-        print("Cron job removed successfully.")
-    else:
-        print("Cron job does not exist.")
-if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == '--remove':
-        remove_cron_job()
-    else:
-        setup_cron_job()
 
 # analysis.py
 def moving_average(data, period):
@@ -387,18 +433,62 @@ update_global_account_data()
 test_print_global_account_data()
 
 # trading.py
+import robin_stocks.robinhood as r
 from utils.analysis import moving_average, calculate_atr, detect_recent_crossover, check_recent_crossovers
 from utils.api import fetch_historical_data, order_buy_market, get_positions
 from utils.settings import SIMULATED, MAX_DAILY_LOSS, ATR_THRESHOLDS, PHONE_NUMBER
 from utils.send_message import send_text_message
 from utils.trade_state import TradeState,calculate_current_risk, get_open_trades
-from termcolor import colored  
+from termcolor import colored
+from datetime import datetime
 def is_market_open():
     from datetime import datetime, time
     now = datetime.now().time()
     market_open = time(9, 30)
     market_close = time(16, 0)
     return market_open <= now <= market_close
+trades_in_consideration = {}
+def format_shares_price(symbol, shares, price):
+    return f"Selling {shares:.4f} shares of {symbol} at {price:.2f}"
+def execute_sell_order(symbol, shares, limit_price, stop_price, reason):
+    try:
+        print(f"Placing stop-limit sell order for {symbol} - {shares:.4f} shares with stop price {stop_price:.2f} and limit price {limit_price:.2f}. Reason: {reason}")
+        order_result = r.orders.order_sell_stop_limit(
+            symbol=symbol,
+            quantity=shares,
+            limitPrice=limit_price,
+            stopPrice=stop_price,
+            timeInForce='gtc'  
+        )
+        if isinstance(order_result, dict) and 'id' in order_result:
+            order_id = order_result.get('id')
+            print(f"Order ID: {order_id} for {symbol} placed successfully.")
+            trades_in_consideration[symbol]['trade_made'] = True
+            trades_in_consideration[symbol]['sell_reason'] = reason
+            trades_in_consideration[symbol]['sell_price'] = limit_price
+            print(f"{format_shares_price(symbol, shares, limit_price)}\nReason: {reason}.")
+        else:
+            print(f"Failed to create stop-limit sell order for {symbol}. Response: {order_result}")
+            print("Attempting fallback market sell order...")
+            fallback_order = r.orders.order_sell_market(symbol, shares)
+            if isinstance(fallback_order, dict) and 'id' in fallback_order:
+                fallback_order_id = fallback_order.get('id')
+                print(f"Market sell order for {symbol} successfully placed. Order ID: {fallback_order_id}")
+            else:
+                print(f"Failed to create fallback market sell order for {symbol}. Response: {fallback_order}")
+    except Exception as e:
+        print(f"Error placing sell order for {symbol}: {e}")
+def check_and_execute_sells():
+    for stock, trade_info in trades_in_consideration.items():
+        if not trade_info['trade_made']:
+            continue  
+        latest_price = float(r.stocks.get_latest_price(stock)[0])
+        if latest_price >= trade_info['reward_sell_price']:
+            print(f"Triggered take profit: {format_shares_price(stock, trade_info['shares_to_purchase'], latest_price)}")
+            execute_sell_order(stock, trade_info['shares_to_purchase'], trade_info['reward_sell_price'], trade_info['buy_price'], 'Take Profit')
+        elif latest_price <= trade_info['risk_sell_price']:
+            print(f"Triggered stop loss: {format_shares_price(stock, trade_info['shares_to_purchase'], latest_price)}")
+            execute_sell_order(stock, trade_info['shares_to_purchase'], trade_info['risk_sell_price'], trade_info['buy_price'], 'Stop Loss')
 def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULATED, atr_thresholds=ATR_THRESHOLDS):
     historicals = fetch_historical_data(stock)
     if not historicals or len(historicals) < 50:  
@@ -422,38 +512,47 @@ def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULA
         classified_atr_percent = 5.0
     if crossover_signal == "Bullish Crossover" and classified_atr_percent in atr_thresholds:
         print(f"Eligible Bullish Crossover found for {stock} with Classified ATR: {classified_atr_percent}%")
-        two_atr = 2 * (classified_atr_percent / 100)
+        two_atr = 2 * (classified_atr_percent / 100)  
         purchase_amount = (0.02 * portfolio_size) / two_atr
         shares_to_purchase = purchase_amount / share_price  
         potential_loss = purchase_amount * two_atr
         potential_gain = potential_loss  
-        risk_percent = (potential_loss / portfolio_size) * 100  
-        if potential_loss <= portfolio_size * 0.02 and current_risk + potential_loss <= MAX_DAILY_LOSS * portfolio_size:
-            results.append({
-                'Stock': stock,
-                'ATR': atr,
-                'ATR Percent': atr_percent,
-                'ATR * 2': two_atr * 100,  
-                'Share Price': share_price,
-                'Eligible for Trade': True,
-                'Trade Made': False,  
-                'Order Status': "Not Attempted",  
-                'Order ID': None,
-                'Trade Amount': purchase_amount,
-                'Shares to Purchase': shares_to_purchase,
-                'Potential Gain': potential_gain,
-                'Risk Percent': risk_percent,
-                'Risk Dollar': potential_loss,
-                'Reason': "Criteria met"
-            })
-            current_risk += potential_loss  
-            print(f"Adding eligible trade for {stock}.")
-        else:
-            print(f"Skipping {stock} due to risk exceeding limits.")
+        reward_sell_price = share_price + potential_gain
+        risk_sell_price = share_price - potential_loss
+        trades_in_consideration[stock] = {
+            'trade_amount': purchase_amount,
+            'shares_to_purchase': shares_to_purchase,
+            'potential_gain': potential_gain,  
+            'risk_dollar': potential_loss,     
+            'atr': atr,
+            'trade_made': False,
+            'buy_price': share_price,
+            'reward_sell_price': reward_sell_price,  
+            'risk_sell_price': risk_sell_price       
+        }
+        results.append({
+            'Stock': stock,
+            'ATR': atr,
+            'ATR Percent': atr_percent,
+            'ATR * 2': two_atr * 100,  
+            'Share Price': share_price,
+            'Eligible for Trade': True,
+            'Trade Made': False,  
+            'Order Status': "Not Attempted",  
+            'Order ID': None,
+            'Trade Amount': purchase_amount,
+            'Shares to Purchase': shares_to_purchase,
+            'Potential Gain': potential_gain,
+            'Risk Percent': (potential_loss / portfolio_size) * 100,
+            'Risk Dollar': potential_loss,
+            'Reason': "Criteria met"
+        })
+        print(f"Adding eligible trade for {stock} with reward at {reward_sell_price} and risk at {risk_sell_price}.")
+        return True
     else:
         if crossover_signal == "Bullish Crossover":
             print(f"{stock} had a Bullish Crossover but was not eligible due to ATR or risk criteria.\n")
-    return True  
+    return False
 def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
     positions = get_positions()
     if trade['Stock'] in positions:
@@ -464,27 +563,44 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
     if total_risk_after_trade > (MAX_DAILY_LOSS * 100):
         print(f"Trade for {trade['Stock']} skipped due to exceeding max risk limits.")
         return False
-    print(f'\nExecuting trade for: {trade["Stock"]}, Simulated={simulated}\n')
+    print(colored(f"Executing fractional trade for: {trade['Stock']}, Simulated={simulated}, Amount: ${trade['Trade Amount']:.2f}", 'green'))
     if is_market_open() and not simulated:
-        order_result = order_buy_market(trade['Stock'], int(trade['Shares to Purchase']))
-        if isinstance(order_result, dict):
-            order_id = order_result.get('id')
-            if order_id:
-                order_status = check_order_status(order_id)
-                if order_status == 'filled':
-                    trade['Trade Made'] = True
-                    trade['Order Status'] = order_status
-                    trade['Order ID'] = order_id
-                    print(f"Trade executed for {trade['Stock']}. Order ID: {order_id}")
-                    return True
+        try:
+            order_result = r.orders.order_buy_fractional_by_price(
+                symbol=trade['Stock'],
+                amountInDollars=trade['Trade Amount'],
+                timeInForce='gfd',
+                extendedHours=False,  
+                jsonify=True
+            )
+            print(f"Order result: {order_result}")  
+            if isinstance(order_result, dict):
+                order_id = order_result.get('id')
+                if order_id:
+                    order_status = check_order_status(order_id)
+                    if order_status == 'filled':
+                        trade['Trade Made'] = True
+                        trade['Order Status'] = order_status
+                        trade['Order ID'] = order_id
+                        global_account_data['positions'][trade['Stock']] = {
+                            'name': trade['Stock'],
+                            'quantity': trade['Shares to Purchase'],
+                            'price': trade['Share Price'],
+                            'purchase_date': datetime.now().strftime("%Y-%m-%d")  
+                        }
+                        print(f"Trade executed for {trade['Stock']}. Order ID: {order_id}")
+                        return True
+                    else:
+                        print(f"Trade for {trade['Stock']} was not filled. Order status: {order_status}")
+                        return False
                 else:
-                    print(f"Trade for {trade['Stock']} was not filled. Order status: {order_status}")
+                    print(f"Order for {trade['Stock']} failed to create properly.")
                     return False
             else:
-                print(f"Order for {trade['Stock']} failed to create properly.")
+                print(f"Trade for {trade['Stock']} failed to execute. Response: {order_result}")
                 return False
-        else:
-            print(f"Trade for {trade['Stock']} failed to execute. Response: {order_result}")
+        except Exception as e:
+            print(f"Exception occurred while executing trade: {e}")
             return False
     else:
         print(f"Simulated or out-of-hours trade for {trade['Stock']}.")
@@ -507,7 +623,7 @@ def check_and_execute_sells(open_trades, portfolio_size):
                     print(f"Sell order for {trade.symbol} failed to create properly.")
             else:
                 print(f"Failed to sell {trade.symbol}. Response: {order_result}")
-def send_trade_summary(top_trades, portfolio_size, current_risk, open_trades, simulated=SIMULATED):
+def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades, simulated=SIMULATED):
     summary_message = "\n--- Trade Summary ---\n"
     mode = "SIMULATED" if simulated else "LIVE"
     summary_message += f"Mode: {mode}\n\n"
@@ -522,7 +638,7 @@ def send_trade_summary(top_trades, portfolio_size, current_risk, open_trades, si
         summary_message += f"ATR: {trade['ATR']:.2f}%\n"
         summary_message += "\n"  
     summary_message += f"\nPortfolio Size: ${portfolio_size:.2f}\n"
-    summary_message += f"Current Risk: ${current_risk:.2f}\n"
+    summary_message += f"Current Risk: {current_risk_percent:.2f}%\n"
     summary_message += "\n--- Open Trades ---\n"
     for trade in open_trades:
         summary_message += f"Symbol: {trade.symbol}\n"

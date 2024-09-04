@@ -1,6 +1,8 @@
+# quick_test.py is a script for testing the Robinhood API and the global account data.
 from dotenv import load_dotenv
 import os
 import robin_stocks.robinhood as r
+from utils.account_data import global_account_data, update_global_account_data
 
 # Load environment variables from .env file
 load_dotenv()
@@ -34,6 +36,35 @@ def get_open_positions():
     print("Open Positions:")
     print(open_positions)
 
+
+def get_open_orders():
+    open_orders = r.orders.get_all_open_stock_orders()
+    print("Raw Open Orders Data:")
+    print(open_orders)  # Debug: Show entire response
+    
+    if open_orders:
+        print("Open Order IDs:")
+        for order in open_orders:
+            if 'id' in order:
+                print(order['id'])  # Print only the 'id'
+            else:
+                print("No 'id' found for order:", order)  # Debug if no 'id' exists
+    else:
+        print("No open orders found.")
+
+
+
+def test_print_global_account_data():
+    import json
+    print("Account Info:")
+    print(json.dumps(global_account_data['account_info'], indent=4))
+    
+    print("\nPortfolio Info:")
+    print(json.dumps(global_account_data['portfolio_info'], indent=4))
+    
+    print("\nPositions:")
+    print(json.dumps(global_account_data['positions'], indent=4))
+
 if __name__ == "__main__":
     login_to_robinhood()
-    get_open_positions()
+    test_print_global_account_data()

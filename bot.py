@@ -3,11 +3,12 @@ from utils.api import get_top_movers, load_csv_data, sanitize_ticker_symbols
 from utils.account_data import global_account_data, update_global_account_data
 from utils.trading import analyze_stock, send_trade_summary, execute_trade, check_and_execute_sells
 from utils.trade_state import calculate_current_risk, get_open_trades
-from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE, MAX_DAILY_LOSS, USE_CSV_DATA, USE_NASDAQ_DATA, USE_SP500_DATA, ATR_THRESHOLDS  
+from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE, MAX_DAILY_LOSS, USE_CSV_DATA, ATR_THRESHOLDS  
 from data_loader import load_stock_symbols  
-from termcolor import colored
 import robin_stocks.robinhood as r
 from tqdm import tqdm
+import logger  # importing the logger file
+import json
 
 def main():
     update_global_account_data()
@@ -40,25 +41,19 @@ def main():
             if not eligible_for_trade:
                 tqdm.write(f"{stock} skipped due to ATR percent being less than 3%.")
 
-    print(colored(f"\nInitial Risk (from open positions): {current_risk_percent:.2f}% of Portfolio", 'yellow'))
-    print(colored(f"Max Allowed Risk: {MAX_DAILY_LOSS * 100:.2f}% of Portfolio", 'yellow'))
-    print(colored(f"Risk Available for New Trades: ${risk_available_for_new_trades:.2f}", 'yellow'))
+    logger.log_initial_risk(current_risk_percent, MAX_DAILY_LOSS * 100, risk_available_for_new_trades)
 
-    print(colored("\n--- Analysis Summary ---", 'yellow'))
-    for result in results:
-        print(f"{result['Stock']}: {colored('Eligible for Trade:', 'blue')} {result['Eligible for Trade']}, "
-              f"ATR Percent: {colored(f'{result['ATR Percent']:.2f}%', 'cyan')}, "
-              f"Reason: {result['Reason']}")
+    logger.log_analysis_summary(results)
 
     results.sort(key=lambda x: x['ATR Percent'], reverse=True)
     top_trades = [trade for trade in results if trade['Eligible for Trade']][:3]
 
     for trade in top_trades:
         if current_risk_percent >= MAX_DAILY_LOSS * 100:
-            print(colored(f"Daily loss limit exceeded. No more trades will be made.", 'red'))
+            logger.log_trade_execution_skipped(trade['Stock'], "exceeding daily loss limit")
             break
         elif trade['Risk Dollar'] > risk_available_for_new_trades:
-            print(colored(f"Trade for {trade['Stock']} skipped due to insufficient risk allowance.", 'red'))
+            logger.log_trade_execution_skipped(trade['Stock'], "insufficient risk allowance")
             continue
 
         trade_made = execute_trade(trade, portfolio_size, current_risk_percent, simulated)
@@ -68,46 +63,20 @@ def main():
             current_risk_percent += new_risk_percent
             risk_available_for_new_trades -= trade['Risk Dollar']
 
-            print(f"Updated Risk after trade: {current_risk_percent:.2f}% of Portfolio")
-            print(f"Risk Available for New Trades: ${risk_available_for_new_trades:.2f}")
+            logger.log_trade_execution_success(trade['Stock'], current_risk_percent, risk_available_for_new_trades)
 
-    print(colored(f"\n--- Final Portfolio Size at the End: ${portfolio_size:.2f} ---", 'cyan'))
-
-    print("\n--- Current Positions ---\n")
-    positions = global_account_data['positions']
-    if positions:
-        for symbol, data in positions.items():
-            print(f"\nStock: {data['name']}")
-            print(f" - Quantity: {data['quantity']} shares")
-            print(f" - Current Price: ${data['price']}")
-            print(f" - Average Buy Price: ${data['average_buy_price']}")
-            print(f" - Equity: ${data['equity']}")
-            print(f" - Percent Change: {data['percent_change']}%")
-            print(f" - Equity Change: ${data['equity_change']}\n")
-    else:
-        print("No positions found.")
-
+    logger.log_final_portfolio_size(portfolio_size)
+    logger.log_current_positions(global_account_data['positions'])
+    
     send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades)
 
-    print(colored("\n--- Summary of Top Three Bullish Crossover Trades ---", 'yellow'))
-    for result in top_trades:
-        print(f"{result['Stock']}: {colored('Eligible for Trade:', 'blue')} {result['Eligible for Trade']}, {colored('Trade Made:', 'blue')} {result['Trade Made']}, Trade Amount: ${result['Trade Amount']:.2f}, Shares to Purchase: {result['Shares to Purchase']:.2f} shares, Potential Gain: ${result['Potential Gain']:.2f}, Risk: {result['Risk Percent']:.2f}% (${result['Risk Dollar']:.2f}), ATR: {result['ATR']:.2f} ({result['ATR Percent']:.2f}%), ATR * 2: {result['ATR * 2']:.2f}%, Reason: {result['Reason']}")
+    logger.log_top_trades(top_trades)
+    logger.log_all_possible_trades(results)
+    logger.log_top_three_trades(top_trades)
 
-    print(colored(f"\n--- Portfolio Size at the End: ${portfolio_size:.2f} ---", 'cyan'))
-    print(colored(f"\n--- Total Number of Stocks Analyzed: {total_stocks_analyzed} ---", 'cyan'))
-    print(colored(f"\n--- Total Possible Number of Trades Made: {total_trades_made} ---", 'cyan'))
-
-    print(colored("\n--- All Possible Trades ---", 'green'))
-    for idx, trade in enumerate(results, start=1):
-        print(f"{idx}. Stock: {colored(trade['Stock'], 'yellow')}, ATR Percent: {colored(f'{trade['ATR Percent']:.2f}%', 'cyan')}, "
-              f"Eligible: {colored(trade['Eligible for Trade'], 'blue')}, Trade Amount: {colored(f'${trade['Trade Amount']:.2f}', 'magenta')}, "
-              f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
-
-    print(colored("\n--- Top Three Trades ---", 'yellow'))
-    for idx, trade in enumerate(top_trades, start=1):
-        print(f"{idx}. Stock: {colored(trade['Stock'], 'yellow')}, ATR Percent: {colored(f'{trade['ATR Percent']:.2f}%', 'cyan')}, "
-              f"Eligible: {colored(trade['Eligible for Trade'], 'blue')}, Trade Amount: {colored(f'${trade['Trade Amount']:.2f}', 'magenta')}, "
-              f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
+    # Print global_account_data at the end of bot.py
+    # print("\n--- Global Account Data at the End ---\n")
+    # print(json.dumps(global_account_data, indent=4))  # Pretty print the full global_account_data dictionary
 
 if __name__ == "__main__":
     main()
