@@ -1,7 +1,14 @@
 # quick_test.py
+from dotenv import load_dotenv
+import os
 import robin_stocks.robinhood as r
+load_dotenv()
 def login_to_robinhood():
-    r.login(username="your_username", password="your_password")
+    username = os.getenv('ROBINHOOD_USERNAME')
+    password = os.getenv('ROBINHOOD_PASSWORD')
+    if not username or not password:
+        raise Exception("ROBINHOOD_USERNAME or ROBINHOOD_PASSWORD not found in the environment variables.")
+    r.login(username=username, password=password)
 def get_account_info():
     account_info = r.profiles.load_account_profile()
     print("Account Information:")
@@ -14,7 +21,7 @@ def get_positions():
     positions = r.account.build_holdings()
     print("Current Positions:")
     print(positions)
-def get_open_positions():  
+def get_open_positions():
     open_positions = r.account.get_open_stock_positions()
     print("Open Positions:")
     print(open_positions)
@@ -22,77 +29,94 @@ if __name__ == "__main__":
     login_to_robinhood()
     get_open_positions()
 
+# data_loader.py
+from utils.api import sanitize_ticker_symbols
+import pandas as pd
+from utils.settings import USE_CSV_DATA, USE_NASDAQ_DATA, USE_SP500_DATA  
+def load_stock_symbols():
+    stock_symbols = []
+    if USE_NASDAQ_DATA and not USE_SP500_DATA:
+        nasdaq_data = load_csv_data('nasdaq100_full.csv', 'nasdaq')
+        nasdaq_data = sanitize_ticker_symbols(nasdaq_data)  
+        stock_symbols = nasdaq_data['Ticker'].tolist()
+    elif USE_SP500_DATA and not USE_NASDAQ_DATA:
+        sp500_data = load_csv_data('sp500_companies.csv', 'sp500')
+        sp500_data = sanitize_ticker_symbols(sp500_data)  
+        stock_symbols = sp500_data['Symbol'].tolist()
+    elif USE_NASDAQ_DATA and USE_SP500_DATA:
+        nasdaq_data = load_csv_data('nasdaq100_full.csv', 'nasdaq')
+        nasdaq_data = sanitize_ticker_symbols(nasdaq_data)  
+        sp500_data = load_csv_data('sp500_companies.csv', 'sp500')
+        sp500_data = sanitize_ticker_symbols(sp500_data)  
+        stock_symbols = nasdaq_data['Ticker'].tolist() + sp500_data['Symbol'].tolist()
+    return stock_symbols
+def load_csv_data(file_path, exchange):
+    df = pd.read_csv(file_path)
+    if exchange.lower() == 'nasdaq':
+        return df[['Ticker']]  
+    elif exchange.lower() == 'sp500':
+        return df[['Symbol']]  
+    else:
+        raise ValueError("Unsupported exchange. Please use 'nasdaq' or 'sp500'.")
+
 # bot.py
 from utils.api import get_top_movers, load_csv_data, sanitize_ticker_symbols
 from utils.account_data import global_account_data, update_global_account_data
 from utils.trading import analyze_stock, send_trade_summary, execute_trade, check_and_execute_sells
-from utils.trade_state import calculate_current_risk, get_open_trades  
-from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE, MAX_DAILY_LOSS, USE_CSV_DATA, USE_NASDAQ_DATA, USE_SP500_DATA, ATR_THRESHOLDS
+from utils.trade_state import calculate_current_risk, get_open_trades
+from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE, MAX_DAILY_LOSS, USE_CSV_DATA, USE_NASDAQ_DATA, USE_SP500_DATA, ATR_THRESHOLDS  
+from data_loader import load_stock_symbols  
 from termcolor import colored
 import robin_stocks.robinhood as r
+from tqdm import tqdm
 def main():
     update_global_account_data()
     simulated = SIMULATED  
-    if simulated:
-        portfolio_size = SIMULATED_PORTFOLIO_SIZE  
-    else:
-        portfolio_size = float(global_account_data['portfolio_info']['equity'])  
+    portfolio_size = SIMULATED_PORTFOLIO_SIZE if simulated else float(global_account_data['portfolio_info']['equity'])  
     max_daily_loss = portfolio_size * MAX_DAILY_LOSS
     open_positions = r.account.get_open_stock_positions()  
     open_trades = get_open_trades(open_positions)  
-    current_risk = calculate_current_risk(open_trades, portfolio_size)
-    risk_available_for_new_trades = max_daily_loss - current_risk
-    stock_symbols = []
+    current_risk_percent, current_risk_dollar = calculate_current_risk(open_trades, portfolio_size)
+    risk_available_for_new_trades = max_daily_loss - current_risk_dollar
     if USE_CSV_DATA:
-        if USE_NASDAQ_DATA and not USE_SP500_DATA:
-            nasdaq_data = load_csv_data('nasdaq100_full.csv', 'nasdaq')
-            nasdaq_data = sanitize_ticker_symbols(nasdaq_data)
-            stock_symbols = nasdaq_data['Ticker'].tolist()
-        elif USE_SP500_DATA and not USE_NASDAQ_DATA:
-            sp500_data = load_csv_data('sp500_companies.csv', 'sp500')
-            sp500_data = sanitize_ticker_symbols(sp500_data)
-            stock_symbols = sp500_data['Symbol'].tolist()
-        elif USE_NASDAQ_DATA and USE_SP500_DATA:
-            nasdaq_data = load_csv_data('nasdaq100_full.csv', 'nasdaq')
-            nasdaq_data = sanitize_ticker_symbols(nasdaq_data)
-            sp500_data = load_csv_data('sp500_companies.csv', 'sp500')
-            sp500_data = sanitize_ticker_symbols(sp500_data)
-            stock_symbols = nasdaq_data['Ticker'].tolist() + sp500_data['Symbol'].tolist()
+        stock_symbols = load_stock_symbols()  
     else:
         stock_symbols = get_top_movers()
-    results = []
-    total_stocks_analyzed = 0
-    total_trades_made = 0
-    for stock in stock_symbols:
-        print(f"\n--- Analyzing {stock} ---")
-        eligible_for_trade = analyze_stock(stock, results, portfolio_size, current_risk, atr_thresholds=ATR_THRESHOLDS, simulated=simulated)
-        total_stocks_analyzed += 1
-    print(colored(f"\nInitial Risk (from open positions): {current_risk:.2f}% of Portfolio", 'yellow'))
+    with tqdm(stock_symbols, desc="Analyzing stocks", position=0, leave=True, ncols=100) as progress_bar:
+        results = []
+        total_stocks_analyzed = 0
+        total_trades_made = 0
+        for stock in stock_symbols:
+            progress_bar.set_description(f"Analyzing {stock}")
+            eligible_for_trade = analyze_stock(stock, results, portfolio_size, current_risk_percent, atr_thresholds=ATR_THRESHOLDS, simulated=simulated)
+            total_stocks_analyzed += 1
+            progress_bar.update(1)  
+            if not eligible_for_trade:
+                tqdm.write(f"{stock} skipped due to ATR percent being less than 3%.")
+    print(colored(f"\nInitial Risk (from open positions): {current_risk_percent:.2f}% of Portfolio", 'yellow'))
     print(colored(f"Max Allowed Risk: {MAX_DAILY_LOSS * 100:.2f}% of Portfolio", 'yellow'))
     print(colored(f"Risk Available for New Trades: ${risk_available_for_new_trades:.2f}", 'yellow'))
     print(colored("\n--- Analysis Summary ---", 'yellow'))
     for result in results:
         print(f"{result['Stock']}: {colored('Eligible for Trade:', 'blue')} {result['Eligible for Trade']}, "
-            f"ATR Percent: {colored(f'{result['ATR Percent']:.2f}%', 'cyan')}, "
-            f"Reason: {result['Reason']}")
+              f"ATR Percent: {colored(f'{result['ATR Percent']:.2f}%', 'cyan')}, "
+              f"Reason: {result['Reason']}")
     results.sort(key=lambda x: x['ATR Percent'], reverse=True)
     top_trades = [trade for trade in results if trade['Eligible for Trade']][:3]
     for trade in top_trades:
-        if current_risk >= max_daily_loss:
+        if current_risk_percent >= MAX_DAILY_LOSS * 100:
             print(colored(f"Daily loss limit exceeded. No more trades will be made.", 'red'))
             break
         elif trade['Risk Dollar'] > risk_available_for_new_trades:
             print(colored(f"Trade for {trade['Stock']} skipped due to insufficient risk allowance.", 'red'))
             continue
-        trade_made = execute_trade(trade, portfolio_size, current_risk, simulated)
+        trade_made = execute_trade(trade, portfolio_size, current_risk_percent, simulated)
         if trade_made:
-            total_trades_made += 1
-            current_risk += trade['Risk Dollar']  
-            risk_available_for_new_trades -= trade['Risk Dollar']  
-            print(f"Updated Risk after trade: {current_risk:.2f}% of Portfolio")  
+            new_risk_percent = (trade['Risk Dollar'] / portfolio_size) * 100
+            current_risk_percent += new_risk_percent
+            risk_available_for_new_trades -= trade['Risk Dollar']
+            print(f"Updated Risk after trade: {current_risk_percent:.2f}% of Portfolio")
             print(f"Risk Available for New Trades: ${risk_available_for_new_trades:.2f}")
-            print(f"Portfolio size after trade: ${portfolio_size:.2f}")  
-        print("\n")
     print(colored(f"\n--- Final Portfolio Size at the End: ${portfolio_size:.2f} ---", 'cyan'))
     print("\n--- Current Positions ---\n")
     positions = global_account_data['positions']
@@ -107,23 +131,23 @@ def main():
             print(f" - Equity Change: ${data['equity_change']}\n")
     else:
         print("No positions found.")
-    send_trade_summary(top_trades, portfolio_size, current_risk, open_trades)
+    send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades)
     print(colored("\n--- Summary of Top Three Bullish Crossover Trades ---", 'yellow'))
     for result in top_trades:
         print(f"{result['Stock']}: {colored('Eligible for Trade:', 'blue')} {result['Eligible for Trade']}, {colored('Trade Made:', 'blue')} {result['Trade Made']}, Trade Amount: ${result['Trade Amount']:.2f}, Shares to Purchase: {result['Shares to Purchase']:.2f} shares, Potential Gain: ${result['Potential Gain']:.2f}, Risk: {result['Risk Percent']:.2f}% (${result['Risk Dollar']:.2f}), ATR: {result['ATR']:.2f} ({result['ATR Percent']:.2f}%), ATR * 2: {result['ATR * 2']:.2f}%, Reason: {result['Reason']}")
-    print(colored(f"\n--- Portfolio Size at the End: ${portfolio_size} ---", 'cyan'))
+    print(colored(f"\n--- Portfolio Size at the End: ${portfolio_size:.2f} ---", 'cyan'))
     print(colored(f"\n--- Total Number of Stocks Analyzed: {total_stocks_analyzed} ---", 'cyan'))
     print(colored(f"\n--- Total Possible Number of Trades Made: {total_trades_made} ---", 'cyan'))
     print(colored("\n--- All Possible Trades ---", 'green'))
     for idx, trade in enumerate(results, start=1):
         print(f"{idx}. Stock: {colored(trade['Stock'], 'yellow')}, ATR Percent: {colored(f'{trade['ATR Percent']:.2f}%', 'cyan')}, "
-            f"Eligible: {colored(trade['Eligible for Trade'], 'blue')}, Trade Amount: {colored(f'${trade['Trade Amount']:.2f}', 'magenta')}, "
-            f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
+              f"Eligible: {colored(trade['Eligible for Trade'], 'blue')}, Trade Amount: {colored(f'${trade['Trade Amount']:.2f}', 'magenta')}, "
+              f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
     print(colored("\n--- Top Three Trades ---", 'yellow'))
     for idx, trade in enumerate(top_trades, start=1):
         print(f"{idx}. Stock: {colored(trade['Stock'], 'yellow')}, ATR Percent: {colored(f'{trade['ATR Percent']:.2f}%', 'cyan')}, "
-            f"Eligible: {colored(trade['Eligible for Trade'], 'blue')}, Trade Amount: {colored(f'${trade['Trade Amount']:.2f}', 'magenta')}, "
-            f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
+              f"Eligible: {colored(trade['Eligible for Trade'], 'blue')}, Trade Amount: {colored(f'${trade['Trade Amount']:.2f}', 'magenta')}, "
+              f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
 if __name__ == "__main__":
     main()
 
@@ -291,15 +315,17 @@ class TradeState:
         return (f"TradeState(symbol={self.symbol}, quantity={self.quantity}, price={self.price}, "
                 f"risk={self.risk}, status={self.order_status}, date={self.trade_date})")
 def calculate_current_risk(open_trades, portfolio_size):
-    total_risk = 0.0
+    total_risk_percent = 0.0
+    total_risk_dollar = 0.0
     for trade in open_trades:
-        current_price = float(global_account_data['positions'][trade.symbol]['price'])  
+        current_price = float(global_account_data['positions'][trade.symbol]['price'])
         atr = calculate_atr(fetch_historical_data(trade.symbol))
         risk_per_share = 2 * atr
-        position_risk = trade.quantity * risk_per_share
-        risk_percent = (position_risk / portfolio_size) * 100
-        total_risk += risk_percent
-    return total_risk
+        position_risk_dollar = trade.quantity * risk_per_share
+        position_risk_percent = (position_risk_dollar / portfolio_size) * 100
+        total_risk_percent += position_risk_percent
+        total_risk_dollar += position_risk_dollar
+    return total_risk_percent, total_risk_dollar  
 def get_open_trades(open_positions):
     openTrades = []
     for position in open_positions:
@@ -330,7 +356,16 @@ import robin_stocks.robinhood as r
 import os
 from dotenv import load_dotenv
 load_dotenv()
-global_account_data = {}
+global_account_data = {
+    'risk_percent': 0.0,  
+    'risk_dollar': 0.0    
+}
+def update_risk_in_global_data(new_risk_percent, new_risk_dollar):
+    global_account_data['risk_percent'] += new_risk_percent
+    global_account_data['risk_dollar'] += new_risk_dollar
+def reset_risk_in_global_data():
+    global_account_data['risk_percent'] = 0.0
+    global_account_data['risk_dollar'] = 0.0
 def login_to_robinhood():
     username = os.getenv('ROBINHOOD_USERNAME')
     password = os.getenv('ROBINHOOD_PASSWORD')
@@ -365,7 +400,6 @@ def is_market_open():
     market_close = time(16, 0)
     return market_open <= now <= market_close
 def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULATED, atr_thresholds=ATR_THRESHOLDS):
-    print(f"\n--- Analyzing {stock} ---")
     historicals = fetch_historical_data(stock)
     if not historicals or len(historicals) < 50:  
         print(f"Not enough data for {stock}. Skipping...")
@@ -420,13 +454,13 @@ def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULA
         if crossover_signal == "Bullish Crossover":
             print(f"{stock} had a Bullish Crossover but was not eligible due to ATR or risk criteria.\n")
     return True  
-def execute_trade(trade, portfolio_size, current_risk, simulated):
+def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
     positions = get_positions()
     if trade['Stock'] in positions:
         print(f"\nTrade for {trade['Stock']} skipped because it's already in the portfolio.")
         return False
     new_risk_percent = (trade['Risk Dollar'] / portfolio_size) * 100
-    total_risk_after_trade = current_risk + new_risk_percent
+    total_risk_after_trade = current_risk_percent + new_risk_percent
     if total_risk_after_trade > (MAX_DAILY_LOSS * 100):
         print(f"Trade for {trade['Stock']} skipped due to exceeding max risk limits.")
         return False
@@ -441,7 +475,6 @@ def execute_trade(trade, portfolio_size, current_risk, simulated):
                     trade['Trade Made'] = True
                     trade['Order Status'] = order_status
                     trade['Order ID'] = order_id
-                    current_risk += new_risk_percent  
                     print(f"Trade executed for {trade['Stock']}. Order ID: {order_id}")
                     return True
                 else:
@@ -458,7 +491,6 @@ def execute_trade(trade, portfolio_size, current_risk, simulated):
         trade['Trade Made'] = True
         trade['Order Status'] = "Simulated"
         trade['Order ID'] = "SIM12345"
-        current_risk += new_risk_percent
         return True
 def check_and_execute_sells(open_trades, portfolio_size):
     for trade in open_trades:

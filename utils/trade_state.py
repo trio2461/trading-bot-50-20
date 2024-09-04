@@ -27,16 +27,23 @@ class TradeState:
         return (f"TradeState(symbol={self.symbol}, quantity={self.quantity}, price={self.price}, "
                 f"risk={self.risk}, status={self.order_status}, date={self.trade_date})")
 
+# trade_state.py
 def calculate_current_risk(open_trades, portfolio_size):
-    total_risk = 0.0
+    total_risk_percent = 0.0
+    total_risk_dollar = 0.0
+    
     for trade in open_trades:
-        current_price = float(global_account_data['positions'][trade.symbol]['price'])  
+        current_price = float(global_account_data['positions'][trade.symbol]['price'])
         atr = calculate_atr(fetch_historical_data(trade.symbol))
         risk_per_share = 2 * atr
-        position_risk = trade.quantity * risk_per_share
-        risk_percent = (position_risk / portfolio_size) * 100
-        total_risk += risk_percent
-    return total_risk
+        position_risk_dollar = trade.quantity * risk_per_share
+        position_risk_percent = (position_risk_dollar / portfolio_size) * 100
+        
+        total_risk_percent += position_risk_percent
+        total_risk_dollar += position_risk_dollar
+
+    return total_risk_percent, total_risk_dollar  # Return both percent and dollar risk
+
 
 def get_open_trades(open_positions):
     openTrades = []

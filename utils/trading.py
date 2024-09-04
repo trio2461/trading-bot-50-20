@@ -13,6 +13,7 @@ def is_market_open():
     market_close = time(16, 0)
     return market_open <= now <= market_close
 
+
 def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULATED, atr_thresholds=ATR_THRESHOLDS):
     historicals = fetch_historical_data(stock)
     
@@ -86,23 +87,21 @@ def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULA
     return True  # Return True to indicate the stock was analyzed
 
 
-def execute_trade(trade, portfolio_size, current_risk, simulated):
+def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
     positions = get_positions()
     if trade['Stock'] in positions:
         print(f"\nTrade for {trade['Stock']} skipped because it's already in the portfolio.")
         return False
 
-    # Calculate potential new risk
     new_risk_percent = (trade['Risk Dollar'] / portfolio_size) * 100
-    total_risk_after_trade = current_risk + new_risk_percent
+    total_risk_after_trade = current_risk_percent + new_risk_percent
 
     if total_risk_after_trade > (MAX_DAILY_LOSS * 100):
         print(f"Trade for {trade['Stock']} skipped due to exceeding max risk limits.")
         return False
 
-    # Proceed to execute the trade
     print(f'\nExecuting trade for: {trade["Stock"]}, Simulated={simulated}\n')
-    
+
     if is_market_open() and not simulated:
         order_result = order_buy_market(trade['Stock'], int(trade['Shares to Purchase']))
         if isinstance(order_result, dict):
@@ -113,7 +112,6 @@ def execute_trade(trade, portfolio_size, current_risk, simulated):
                     trade['Trade Made'] = True
                     trade['Order Status'] = order_status
                     trade['Order ID'] = order_id
-                    current_risk += new_risk_percent  # Update current risk
                     print(f"Trade executed for {trade['Stock']}. Order ID: {order_id}")
                     return True
                 else:
@@ -130,7 +128,6 @@ def execute_trade(trade, portfolio_size, current_risk, simulated):
         trade['Trade Made'] = True
         trade['Order Status'] = "Simulated"
         trade['Order ID'] = "SIM12345"
-        current_risk += new_risk_percent
         return True
 
 

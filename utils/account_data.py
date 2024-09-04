@@ -6,7 +6,19 @@ from dotenv import load_dotenv
 # Load environment variables (like Robinhood username and password)
 load_dotenv()
 
-global_account_data = {}
+# account_data.py
+global_account_data = {
+    'risk_percent': 0.0,  # Track risk percentage globally
+    'risk_dollar': 0.0    # Track risk in dollar terms
+}
+
+def update_risk_in_global_data(new_risk_percent, new_risk_dollar):
+    global_account_data['risk_percent'] += new_risk_percent
+    global_account_data['risk_dollar'] += new_risk_dollar
+
+def reset_risk_in_global_data():
+    global_account_data['risk_percent'] = 0.0
+    global_account_data['risk_dollar'] = 0.0
 
 def login_to_robinhood():
     username = os.getenv('ROBINHOOD_USERNAME')
