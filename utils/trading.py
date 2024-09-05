@@ -146,25 +146,6 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
         trade['Order ID'] = "SIM12345"
         return True
 
-def check_and_execute_sells(open_trades, portfolio_size):
-    for trade in open_trades:
-        current_price = float(r.stocks.get_latest_price(trade.symbol)[0])
-        target_sell_price = trade.price + (trade.price * trade.risk / trade.quantity)  # Assuming risk is calculated using ATR * 2
-        
-        if current_price >= target_sell_price:
-            # Sell the stock
-            print(f"Selling {trade.quantity} shares of {trade.symbol} at {current_price}")
-            order_result = r.orders.order_sell_market(trade.symbol, trade.quantity)
-            
-            if isinstance(order_result, dict):  # Check if order_result is a dictionary
-                order_id = order_result.get('id')
-                if order_id:
-                    print(f"Sold {trade.symbol} successfully. Order ID: {order_id}")
-                else:
-                    print(f"Sell order for {trade.symbol} failed to create properly.")
-            else:
-                print(f"Failed to sell {trade.symbol}. Response: {order_result}")
-
 
 # Fixing the summary report to correctly reflect current risk
 def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades, simulated=SIMULATED):
@@ -200,3 +181,32 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
         summary_message += "\n"  # Adding a blank line between each trade
 
     send_text_message(summary_message, phone_number=PHONE_NUMBER)
+
+
+def check_open_positions_sell_points():
+    open_positions = r.account.build_holdings()  # Get open positions
+    for symbol, data in open_positions.items():
+        current_price = float(data['price'])  # Current market price
+        quantity = float(data['quantity'])
+        purchase_price = float(data['average_buy_price'])  # Initial purchase price
+
+        historical_data = fetch_historical_data(symbol)
+        atr = calculate_atr(historical_data)  # Calculate ATR
+        atr_percent = (atr / purchase_price) * 100
+
+        # Determine which ATR category (3%, 4%, 5%) the stock falls under
+        if atr_percent < 3.5:
+            atr_multiple = 3
+        elif atr_percent < 4.5:
+            atr_multiple = 4
+        else:
+            atr_multiple = 5
+
+        sell_point = purchase_price + (2 * (atr_multiple / 100) * purchase_price)  # 2 * ATR above purchase price
+
+        if current_price >= sell_point:
+            print(f"Selling {symbol} at {current_price} (Sell point: {sell_point})")
+            order = order_sell_market(symbol, quantity)
+            print(f"Sell order placed for {symbol}: {order}")
+        else:
+            print(f"{symbol} has not hit the sell point yet. Current price: {current_price}, Sell point: {sell_point}")

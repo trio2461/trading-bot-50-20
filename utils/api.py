@@ -29,6 +29,16 @@ def order_buy_market(symbol, quantity):
         print(f"Error placing market order: {e}")
         return None
 
+
+def order_sell_market(symbol, quantity):
+    try:
+        order = r.orders.order_sell_market(symbol, quantity)
+        return order
+    except Exception as e:
+        print(f"Error placing market sell order: {e}")
+        return None
+
+
 def fetch_historical_data(stock, interval='day', span='3month'):
     try:
         sanitized_stock = stock.replace('-', '')

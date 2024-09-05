@@ -1,7 +1,7 @@
 # bot.py
 from utils.api import get_top_movers, load_csv_data, sanitize_ticker_symbols
 from utils.account_data import global_account_data, update_global_account_data
-from utils.trading import analyze_stock, send_trade_summary, execute_trade, check_and_execute_sells
+from utils.trading import analyze_stock, send_trade_summary, execute_trade
 from utils.trade_state import calculate_current_risk, get_open_trades
 from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE, MAX_DAILY_LOSS, USE_CSV_DATA, ATR_THRESHOLDS  
 from data_loader import load_stock_symbols  

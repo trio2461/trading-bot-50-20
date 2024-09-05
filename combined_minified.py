@@ -153,7 +153,7 @@ def log_top_three_trades(top_trades):
 # bot.py
 from utils.api import get_top_movers, load_csv_data, sanitize_ticker_symbols
 from utils.account_data import global_account_data, update_global_account_data
-from utils.trading import analyze_stock, send_trade_summary, execute_trade, check_and_execute_sells
+from utils.trading import analyze_stock, send_trade_summary, execute_trade
 from utils.trade_state import calculate_current_risk, get_open_trades
 from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE, MAX_DAILY_LOSS, USE_CSV_DATA, ATR_THRESHOLDS  
 from data_loader import load_stock_symbols  
@@ -218,19 +218,35 @@ import logging
 import signal
 import sys
 from bot import main
+from utils.trading import check_open_positions_sell_points
+from datetime import datetime
 logging.basicConfig(filename='bot_schedule.log', level=logging.INFO)
-def job():
-    try:
-        logging.info("Running scheduled bot job...")
-        main()  
-    except Exception as e:
-        logging.error(f"Error during scheduled job: {e}")
+def market_hours():
+    now = datetime.now().time()
+    market_open = time(9, 30)  
+    market_close = time(16, 0)  
+    return market_open <= now <= market_close
+def run_main():
+    if market_hours():
+        logging.info("Running main every minute during market hours...")
+        main()
+    else:
+        logging.info("Running main every 5 hours during non-market hours...")
+def run_check_positions():
+    if market_hours():
+        logging.info("Checking positions every 5 minutes during market hours...")
+        check_open_positions_sell_points()
+    else:
+        logging.info("Checking positions every 5 hours during non-market hours...")
 def signal_handler(sig, frame):
     logging.info("Received termination signal. Shutting down...")
     sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
-schedule.every(1).minute.do(job)
+schedule.every(1).minute.do(lambda: run_main() if market_hours() else None)  
+schedule.every(5).minutes.do(lambda: run_check_positions() if market_hours() else None)  
+schedule.every(5).hours.do(lambda: run_main() if not market_hours() else None)  
+schedule.every(5).hours.do(lambda: run_check_positions() if not market_hours() else None)  
 logging.info("Scheduler started...")
 while True:
     schedule.run_pending()
@@ -556,21 +572,6 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
         trade['Order Status'] = "Simulated"
         trade['Order ID'] = "SIM12345"
         return True
-def check_and_execute_sells(open_trades, portfolio_size):
-    for trade in open_trades:
-        current_price = float(r.stocks.get_latest_price(trade.symbol)[0])
-        target_sell_price = trade.price + (trade.price * trade.risk / trade.quantity)  
-        if current_price >= target_sell_price:
-            print(f"Selling {trade.quantity} shares of {trade.symbol} at {current_price}")
-            order_result = r.orders.order_sell_market(trade.symbol, trade.quantity)
-            if isinstance(order_result, dict):  
-                order_id = order_result.get('id')
-                if order_id:
-                    print(f"Sold {trade.symbol} successfully. Order ID: {order_id}")
-                else:
-                    print(f"Sell order for {trade.symbol} failed to create properly.")
-            else:
-                print(f"Failed to sell {trade.symbol}. Response: {order_result}")
 def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades, simulated=SIMULATED):
     summary_message = "\n--- Trade Summary ---\n"
     mode = "SIMULATED" if simulated else "LIVE"
@@ -596,6 +597,28 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
         summary_message += f"Side: {trade.side.capitalize()}\n"
         summary_message += "\n"  
     send_text_message(summary_message, phone_number=PHONE_NUMBER)
+def check_open_positions_sell_points():
+    open_positions = r.account.build_holdings()  
+    for symbol, data in open_positions.items():
+        current_price = float(data['price'])  
+        quantity = float(data['quantity'])
+        purchase_price = float(data['average_buy_price'])  
+        historical_data = fetch_historical_data(symbol)
+        atr = calculate_atr(historical_data)  
+        atr_percent = (atr / purchase_price) * 100
+        if atr_percent < 3.5:
+            atr_multiple = 3
+        elif atr_percent < 4.5:
+            atr_multiple = 4
+        else:
+            atr_multiple = 5
+        sell_point = purchase_price + (2 * (atr_multiple / 100) * purchase_price)  
+        if current_price >= sell_point:
+            print(f"Selling {symbol} at {current_price} (Sell point: {sell_point})")
+            order = order_sell_market(symbol, quantity)
+            print(f"Sell order placed for {symbol}: {order}")
+        else:
+            print(f"{symbol} has not hit the sell point yet. Current price: {current_price}, Sell point: {sell_point}")
 
 # api.py
 import robin_stocks.robinhood as r
@@ -621,6 +644,13 @@ def order_buy_market(symbol, quantity):
         return order_id
     except Exception as e:
         print(f"Error placing market order: {e}")
+        return None
+def order_sell_market(symbol, quantity):
+    try:
+        order = r.orders.order_sell_market(symbol, quantity)
+        return order
+    except Exception as e:
+        print(f"Error placing market sell order: {e}")
         return None
 def fetch_historical_data(stock, interval='day', span='3month'):
     try:
