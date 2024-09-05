@@ -147,66 +147,130 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
         return True
 
 
-# Fixing the summary report to correctly reflect current risk
-def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades, simulated=SIMULATED):
+def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades, global_account_data, simulated=False):
     summary_message = "\n--- Trade Summary ---\n"
-    
-    # Indicate if the trades are simulated or live
     mode = "SIMULATED" if simulated else "LIVE"
     summary_message += f"Mode: {mode}\n\n"
 
+    # Include the sales information
+    if 'sales' in global_account_data:
+        summary_message += "--- Sales Made ---\n"
+        for sale in global_account_data['sales']:
+            sale_type = "Profit" if sale['profit'] else "Loss"
+            summary_message += f"{sale['symbol']} - {sale_type} at ${sale['sale_price']:.2f} on {sale['sale_time']}\n"
+        summary_message += "\n"
+
     for trade in top_trades:
+        atr = trade.get('ATR', 0)
+        atr_percent = trade.get('ATR Percent', 0)
+        trade_amount = trade.get('Trade Amount', 0)
+        shares_to_purchase = trade.get('Shares to Purchase', 0)
+        purchase_price = trade.get('Share Price', 0)
+
+        # Calculating stop loss and stop limit
+        stop_loss = purchase_price - (2 * atr)
+        stop_limit = purchase_price + (2 * atr)
+
+        # Calculate percentage moves to stop loss and stop limit from the **current price**
+        current_price = float(global_account_data['positions'][trade['Stock']].get('price', purchase_price))  
+        percent_to_stop_loss = ((current_price - stop_loss) / current_price) * 100
+        percent_to_stop_limit = ((stop_limit - current_price) / current_price) * 100
+
         summary_message += f"Stock: {trade['Stock']}\n"
         summary_message += f"Trade Made: {trade['Trade Made']}\n"
-        summary_message += f"Trade Amount: ${trade['Trade Amount']:.2f}\n"
-        summary_message += f"Shares to Purchase: {trade['Shares to Purchase']:.2f} shares\n"
+        summary_message += f"Trade Amount: ${trade_amount:.2f}\n"
+        summary_message += f"Shares to Purchase: {shares_to_purchase:.2f} shares\n"
         summary_message += f"Potential Gain: ${trade['Potential Gain']:.2f}\n"
         summary_message += f"Risk Percent: {trade['Risk Percent']:.2f}%\n"
         summary_message += f"Risk Dollar: ${trade['Risk Dollar']:.2f}\n"
-        summary_message += f"ATR: {trade['ATR']:.2f}%\n"
-        summary_message += "\n"  # Adding a blank line between each trade
-    
-    # Display portfolio size and current risk as a percentage of the portfolio
+        summary_message += f"ATR: ${atr:.2f} (Average True Range in dollars)\n"
+        summary_message += f"ATR Percent: {atr_percent:.2f}% (ATR as percent of the stock price)\n"
+        summary_message += f"Stop Loss: ${stop_loss:.2f} ({percent_to_stop_loss:.2f}% move from current price)\n"
+        summary_message += f"Stop Limit: ${stop_limit:.2f} ({percent_to_stop_limit:.2f}% move from current price)\n"
+        summary_message += "\n"
+
     summary_message += f"\nPortfolio Size: ${portfolio_size:.2f}\n"
     summary_message += f"Current Risk: {current_risk_percent:.2f}%\n"
-
-    # Adding details of open trades
     summary_message += "\n--- Open Trades ---\n"
+
+    # Processing open trades
     for trade in open_trades:
+        # Fetch ATR for each open trade
+        historical_data = fetch_historical_data(trade.symbol)
+        atr = calculate_atr(historical_data)
+        atr_percent = (atr / float(global_account_data['positions'][trade.symbol].get('average_buy_price', 0))) * 100
+
+        # Price and stop loss/limit calculations
+        current_price = float(global_account_data['positions'][trade.symbol].get('price', 0))
+        purchase_price = float(global_account_data['positions'][trade.symbol].get('average_buy_price', 0))
+
+        stop_loss = purchase_price - (2 * atr)
+        stop_limit = purchase_price + (2 * atr)
+
+        percent_to_stop_loss = ((current_price - stop_loss) / current_price) * 100
+        percent_to_stop_limit = ((stop_limit - current_price) / current_price) * 100
+
         summary_message += f"Symbol: {trade.symbol}\n"
-        summary_message += f"Quantity: {trade.quantity}\n"
-        summary_message += f"Price: ${trade.price:.2f}\n"
-        summary_message += f"Risk: {trade.risk}\n"
+        summary_message += f"Quantity: {trade.quantity:.4f}\n"
+        summary_message += f"Purchase Price: ${purchase_price:.2f}\n"
+        summary_message += f"Price: ${current_price:.2f}\n"
+        summary_message += f"Risk: ${trade.risk:.2f}\n"
         summary_message += f"Side: {trade.side.capitalize()}\n"
-        summary_message += "\n"  # Adding a blank line between each trade
+        summary_message += f"ATR: ${atr:.2f} (Average True Range in dollars)\n"
+        summary_message += f"ATR Percent: {atr_percent:.2f}% (ATR as percent of stock price)\n"
+        summary_message += f"Stop Loss: ${stop_loss:.2f} ({percent_to_stop_loss:.2f}% move from current price)\n"
+        summary_message += f"Stop Limit: ${stop_limit:.2f} ({percent_to_stop_limit:.2f}% move from current price)\n"
+        summary_message += "\n"
 
-    send_text_message(summary_message, phone_number=PHONE_NUMBER)
+    # Send the message via text
+    send_text_message(summary_message)
 
-
+    
 def check_open_positions_sell_points():
-    open_positions = r.account.build_holdings()  # Get open positions
-    for symbol, data in open_positions.items():
-        current_price = float(data['price'])  # Current market price
-        quantity = float(data['quantity'])
-        purchase_price = float(data['average_buy_price'])  # Initial purchase price
+    open_positions = r.account.build_holdings()  
+    open_trades = get_open_trades(open_positions)  
 
-        historical_data = fetch_historical_data(symbol)
-        atr = calculate_atr(historical_data)  # Calculate ATR
-        atr_percent = (atr / purchase_price) * 100
+    for trade in open_trades:
+        current_price = float(global_account_data['positions'][trade.symbol].get('price', 0))
 
-        # Determine which ATR category (3%, 4%, 5%) the stock falls under
-        if atr_percent < 3.5:
-            atr_multiple = 3
-        elif atr_percent < 4.5:
-            atr_multiple = 4
+        if current_price >= trade.stop_limit:
+            print(f"Selling {trade.symbol} at {current_price} (Stop Limit: {trade.stop_limit})")
+            order = order_sell_market(trade.symbol, trade.quantity)  
+            print(f"Sell order placed for {trade.symbol}: {order}")
+
+            # Determine if sale was for a profit
+            profit = current_price > trade.purchase_price
+            add_sale_to_global_data(trade.symbol, profit, current_price)
+        
+        elif current_price <= trade.stop_loss:
+            print(f"Selling {trade.symbol} at {current_price} (Stop Loss: {trade.stop_loss})")
+            order = order_sell_market(trade.symbol, trade.quantity)  
+            print(f"Sell order placed for {trade.symbol}: {order}")
+
+            # Determine if sale was for a profit
+            profit = current_price > trade.purchase_price
+            add_sale_to_global_data(trade.symbol, profit, current_price)
+        
         else:
-            atr_multiple = 5
+            print(f"{trade.symbol} has not hit the sell point yet. Current price: {current_price}, "
+                  f"Stop Loss: {trade.stop_loss}, Stop Limit: {trade.stop_limit}")
+            
 
-        sell_point = purchase_price + (2 * (atr_multiple / 100) * purchase_price)  # 2 * ATR above purchase price
+def add_sale_to_global_data(symbol, profit, sale_price):
+    if 'sales' not in global_account_data:
+        global_account_data['sales'] = []
 
-        if current_price >= sell_point:
-            print(f"Selling {symbol} at {current_price} (Sell point: {sell_point})")
-            order = order_sell_market(symbol, quantity)
-            print(f"Sell order placed for {symbol}: {order}")
-        else:
-            print(f"{symbol} has not hit the sell point yet. Current price: {current_price}, Sell point: {sell_point}")
+    sale_info = {
+        'symbol': symbol,
+        'profit': profit,
+        'sale_price': sale_price,
+        'sale_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    global_account_data['sales'].append(sale_info)
+
+    # Log the sale information
+    if profit:
+        print(f"Sale made for profit: {symbol} at ${sale_price}")
+    else:
+        print(f"Sale made for a loss: {symbol} at ${sale_price}")

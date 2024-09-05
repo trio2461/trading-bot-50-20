@@ -7,27 +7,35 @@ from utils.account_data import global_account_data
 
 
 class TradeState:
-    def __init__(self, symbol, quantity, price, order_id, side, order_status="pending"):
-        self.symbol = symbol
-        self.quantity = quantity
-        self.price = price
-        self.order_id = order_id
-        self.side = side  
-        self.order_status = order_status  
-        self.trade_date = datetime.now()  
-        self.risk = self.calculate_risk()
-    
+    def __init__(self, symbol, quantity, purchase_price, atr_percent, stop_loss, stop_limit, order_id, side="buy", order_status="pending"):
+        self.symbol = symbol  # Stock symbol
+        self.quantity = quantity  # Number of shares
+        self.purchase_price = purchase_price  # Purchase price at the time of trade
+        self.atr_percent = atr_percent  # ATR percentage at the time of purchase
+        self.stop_loss = stop_loss  # Stop loss price
+        self.stop_limit = stop_limit  # Stop limit price
+        self.order_id = order_id  # Order ID
+        self.side = side  # Buy or sell
+        self.order_status = order_status  # Status of the trade
+        self.trade_date = datetime.now()  # Trade date
+        self.risk = self.calculate_risk()  # Calculated risk
+
     def calculate_risk(self):
-        return self.quantity
-    
+        # Calculate the risk in dollar terms, based on the stop loss and purchase price
+        risk_per_share = self.purchase_price - self.stop_loss
+        total_risk = self.quantity * risk_per_share
+        return total_risk
+
     def is_expired(self, current_date):
-        return (current_date - self.trade_date).days >= 14
-    
+        # Define an expiration rule if needed
+        return (current_date - self.trade_date).days >= 14  # Example: Trade expires after 14 days
+
     def __str__(self):
-        return (f"TradeState(symbol={self.symbol}, quantity={self.quantity}, price={self.price}, "
+        return (f"TradeState(symbol={self.symbol}, quantity={self.quantity}, purchase_price={self.purchase_price}, "
+                f"stop_loss={self.stop_loss}, stop_limit={self.stop_limit}, "
                 f"risk={self.risk}, status={self.order_status}, date={self.trade_date})")
 
-# trade_state.py
+ 
 def calculate_current_risk(open_trades, portfolio_size):
     total_risk_percent = 0.0
     total_risk_dollar = 0.0
@@ -46,18 +54,36 @@ def calculate_current_risk(open_trades, portfolio_size):
 
 
 def get_open_trades(open_positions):
-    openTrades = []
+    open_trades = []
     for position in open_positions:
-        symbol = position.get('symbol', 'N/A')  # Assuming 'symbol' is the key for the stock symbol
+        symbol = position.get('symbol', 'N/A')
         quantity = float(position.get('quantity', 0))
-        price = float(position.get('price', 0))
-        position_id = position.get('id', 'N/A')  # Using 'N/A' as a fallback if there's no ID
-        side = "buy"  # Assuming all open positions are buys; adjust if needed
-        position_status = "open"  # Set a default status if needed
+        purchase_price = float(position.get('average_buy_price', 0))
+        
+        # Fetch ATR data
+        historical_data = fetch_historical_data(symbol)
+        atr = calculate_atr(historical_data)
+        atr_percent = (atr / purchase_price) * 100
+        
+        # Calculate stop loss and stop limit
+        stop_loss = purchase_price - (2 * atr)
+        stop_limit = purchase_price + (2 * atr)
 
-        trade = TradeState(symbol, quantity, price, position_id, side, position_status)
-        openTrades.append(trade)
-    return openTrades
+        # Create TradeState object
+        trade = TradeState(
+            symbol=symbol,
+            quantity=quantity,
+            purchase_price=purchase_price,
+            atr_percent=atr_percent,
+            stop_loss=stop_loss,
+            stop_limit=stop_limit,
+            order_id=position.get('id', 'N/A'),
+            side="buy",
+            order_status="open"
+        )
+        open_trades.append(trade)
+    
+    return open_trades
 
 
 def check_position_status(position_id):  # Renamed from check_order_status

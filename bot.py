@@ -68,7 +68,7 @@ def main():
     logger.log_final_portfolio_size(portfolio_size)
     logger.log_current_positions(global_account_data['positions'])
     
-    send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades)
+    send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades, global_account_data)
 
     logger.log_top_trades(top_trades)
     logger.log_all_possible_trades(results)
