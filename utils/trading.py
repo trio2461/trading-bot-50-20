@@ -1,12 +1,12 @@
 # utils/trading.py
 import robin_stocks.robinhood as r
 from utils.analysis import moving_average, calculate_atr, detect_recent_crossover, check_recent_crossovers
-from utils.api import fetch_historical_data, order_buy_market, get_positions
+from utils.api import fetch_historical_data, order_buy_market
 from utils.settings import SIMULATED, MAX_DAILY_LOSS, ATR_THRESHOLDS, PHONE_NUMBER
 from utils.send_message import send_text_message
 from utils.trade_state import TradeState,calculate_current_risk, get_open_trades
 from termcolor import colored
-from datetime import datetime
+from datetime import datetime, timedelta
 
 def is_market_open():
     from datetime import datetime, time
@@ -90,7 +90,7 @@ def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULA
 
 
 def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
-    positions = get_positions()
+    positions = global_account_data['positions']  # Now uses global_account_data instead of get_positions()
     if trade['Stock'] in positions:
         print(f"\nTrade for {trade['Stock']} skipped because it's already in the portfolio.")
         return False
@@ -118,12 +118,11 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
                         trade['Trade Made'] = True
                         trade['Order Status'] = order_status
                         trade['Order ID'] = order_id
-                        # Save the purchase date to global_account_data
                         global_account_data['positions'][trade['Stock']] = {
                             'name': trade['Stock'],
                             'quantity': trade['Shares to Purchase'],
                             'price': trade['Share Price'],
-                            'purchase_date': datetime.now().strftime("%Y-%m-%d")  # Store the current date
+                            'purchase_date': datetime.now().strftime("%Y-%m-%d")  
                         }
                         print(f"Trade executed for {trade['Stock']}. Order ID: {order_id}")
                         return True
@@ -151,28 +150,33 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
     summary_message = "\n--- Trade Summary ---\n"
     mode = "SIMULATED" if simulated else "LIVE"
     summary_message += f"Mode: {mode}\n\n"
-
-    # Include the sales information
+    
+    # Add the sales summary
     if 'sales' in global_account_data:
         summary_message += "--- Sales Made ---\n"
         for sale in global_account_data['sales']:
             sale_type = "Profit" if sale['profit'] else "Loss"
             summary_message += f"{sale['symbol']} - {sale_type} at ${sale['sale_price']:.2f} on {sale['sale_time']}\n"
         summary_message += "\n"
-
+    
     for trade in top_trades:
         atr = trade.get('ATR', 0)
         atr_percent = trade.get('ATR Percent', 0)
         trade_amount = trade.get('Trade Amount', 0)
         shares_to_purchase = trade.get('Shares to Purchase', 0)
         purchase_price = trade.get('Share Price', 0)
-
-        # Calculating stop loss and stop limit
         stop_loss = purchase_price - (2 * atr)
         stop_limit = purchase_price + (2 * atr)
 
-        # Calculate percentage moves to stop loss and stop limit from the **current price**
-        current_price = float(global_account_data['positions'][trade['Stock']].get('price', purchase_price))  
+        # If the trade is made, fetch the current price from positions
+        if trade['Trade Made']:
+            if trade['Stock'] in global_account_data['positions']:
+                current_price = float(global_account_data['positions'][trade['Stock']].get('price', purchase_price))
+            else:
+                current_price = purchase_price  # Fallback to purchase price if not found
+        else:
+            current_price = purchase_price  # Fallback to purchase price for trades not yet made
+
         percent_to_stop_loss = ((current_price - stop_loss) / current_price) * 100
         percent_to_stop_limit = ((stop_limit - current_price) / current_price) * 100
 
@@ -188,25 +192,19 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
         summary_message += f"Stop Loss: ${stop_loss:.2f} ({percent_to_stop_loss:.2f}% move from current price)\n"
         summary_message += f"Stop Limit: ${stop_limit:.2f} ({percent_to_stop_limit:.2f}% move from current price)\n"
         summary_message += "\n"
-
+    
     summary_message += f"\nPortfolio Size: ${portfolio_size:.2f}\n"
     summary_message += f"Current Risk: {current_risk_percent:.2f}%\n"
-    summary_message += "\n--- Open Trades ---\n"
 
-    # Processing open trades
+    summary_message += "\n--- Open Trades ---\n"
     for trade in open_trades:
-        # Fetch ATR for each open trade
         historical_data = fetch_historical_data(trade.symbol)
         atr = calculate_atr(historical_data)
         atr_percent = (atr / float(global_account_data['positions'][trade.symbol].get('average_buy_price', 0))) * 100
-
-        # Price and stop loss/limit calculations
         current_price = float(global_account_data['positions'][trade.symbol].get('price', 0))
         purchase_price = float(global_account_data['positions'][trade.symbol].get('average_buy_price', 0))
-
         stop_loss = purchase_price - (2 * atr)
         stop_limit = purchase_price + (2 * atr)
-
         percent_to_stop_loss = ((current_price - stop_loss) / current_price) * 100
         percent_to_stop_limit = ((stop_limit - current_price) / current_price) * 100
 
@@ -221,56 +219,139 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
         summary_message += f"Stop Loss: ${stop_loss:.2f} ({percent_to_stop_loss:.2f}% move from current price)\n"
         summary_message += f"Stop Limit: ${stop_limit:.2f} ({percent_to_stop_limit:.2f}% move from current price)\n"
         summary_message += "\n"
-
-    # Send the message via text
+    
     send_text_message(summary_message)
 
-    
-def check_open_positions_sell_points():
-    open_positions = r.account.build_holdings()  
-    open_trades = get_open_trades(open_positions)  
 
-    for trade in open_trades:
-        current_price = float(global_account_data['positions'][trade.symbol].get('price', 0))
+def check_positions_against_atr(global_account_data):
+    """
+    Checks all open positions to see if they have crossed their ATR-based stop loss or stop limit.
+    If crossed, it triggers a market order to close the position and logs the sale.
+    """
+    positions = global_account_data['positions']
+    positions_closed = False  # Flag to track if any position was closed
 
-        if current_price >= trade.stop_limit:
-            print(f"Selling {trade.symbol} at {current_price} (Stop Limit: {trade.stop_limit})")
-            order = order_sell_market(trade.symbol, trade.quantity)  
-            print(f"Sell order placed for {trade.symbol}: {order}")
+    for symbol, data in positions.items():
+        quantity = float(data.get('quantity', 0))
+        purchase_price = float(data.get('average_buy_price', 0))
+        current_price = float(data.get('price', 0))
 
-            # Determine if sale was for a profit
-            profit = current_price > trade.purchase_price
-            add_sale_to_global_data(trade.symbol, profit, current_price)
-        
-        elif current_price <= trade.stop_loss:
-            print(f"Selling {trade.symbol} at {current_price} (Stop Loss: {trade.stop_loss})")
-            order = order_sell_market(trade.symbol, trade.quantity)  
-            print(f"Sell order placed for {trade.symbol}: {order}")
+        # Fetch historical data and calculate ATR
+        historical_data = fetch_historical_data(symbol)
+        atr = calculate_atr(historical_data)
 
-            # Determine if sale was for a profit
-            profit = current_price > trade.purchase_price
-            add_sale_to_global_data(trade.symbol, profit, current_price)
-        
-        else:
-            print(f"{trade.symbol} has not hit the sell point yet. Current price: {current_price}, "
-                  f"Stop Loss: {trade.stop_loss}, Stop Limit: {trade.stop_limit}")
+        # Calculate stop loss and stop limit
+        stop_loss = purchase_price - (2 * atr)
+        stop_limit = purchase_price + (2 * atr)
+
+        # Check if the current price has crossed the stop loss or stop limit
+        if current_price <= stop_loss:
+            print(f"Position for {symbol} has hit the stop loss at ${stop_loss:.2f}. Closing the position.")
+            close_trade(symbol, quantity, sale_type="Loss", sale_price=current_price)
+            positions_closed = True  # Mark as a closed position
+        elif current_price >= stop_limit:
+            print(f"Position for {symbol} has hit the stop limit at ${stop_limit:.2f}. Closing the position.")
+            close_trade(symbol, quantity, sale_type="Profit", sale_price=current_price)
+            positions_closed = True  # Mark as a closed position
+
+    if not positions_closed:
+        print("No positions have hit the ATR stop loss or stop limit.")
+
+
+def close_trades_open_for_ten_days(positions):
+    """
+    Checks if any trades have been open for more than 10 days.
+    If so, closes the trades and logs the sales.
+    """
+    trades_closed = False  # Flag to track if any trades were closed
+
+    for symbol, data in positions.items():
+        purchase_date_str = data.get('purchase_date')
+        if purchase_date_str:
+            purchase_date = datetime.strptime(purchase_date_str, "%Y-%m-%d")
+            days_held = (datetime.now() - purchase_date).days
+
+            if days_held > 10:
+                quantity = float(data.get('quantity', 0))
+                current_price = float(data.get('price', 0))
+                print(f"Trade for {symbol} has been open for more than 10 days. Closing the position.")
+                close_trade(symbol, quantity, sale_price=current_price)
+                trades_closed = True  # Set the flag if any trade is closed
+
+    if not trades_closed:
+        print("No trades open more than 10 days.")
+
+def close_trade(trade):
+    try:
+        result = r.orders.order_sell_market(trade.symbol, trade.quantity)
+        if result and 'id' in result:
+            print(f"Trade {trade.symbol} closed successfully.")
             
+            # Determine if the trade was profitable or not
+            current_price = float(global_account_data['positions'][trade.symbol].get('price', 0))
+            purchase_price = float(global_account_data['positions'][trade.symbol].get('average_buy_price', 0))
+            profit = current_price > purchase_price  # True if sold at a profit
+
+            # Add the sale to global account data
+            add_sale_to_global_data(trade.symbol, profit, current_price)
+        else:
+            print(f"Failed to close trade for {trade.symbol}. Response: {result}")
+    except Exception as e:
+        print(f"Exception occurred while closing trade: {e}")
+
 
 def add_sale_to_global_data(symbol, profit, sale_price):
+    """
+    Logs the sale of a stock position in the global account data, marking whether the sale was for a profit or loss.
+    
+    :param symbol: The stock symbol of the sold position.
+    :param profit: Boolean value indicating if the sale was profitable (True) or a loss (False).
+    :param sale_price: The price at which the stock was sold.
+    """
     if 'sales' not in global_account_data:
-        global_account_data['sales'] = []
+        global_account_data['sales'] = []  # Initialize the sales log if it doesn't exist
 
+    # Create the sale info dictionary
     sale_info = {
         'symbol': symbol,
         'profit': profit,
         'sale_price': sale_price,
-        'sale_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        'sale_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Record the current time of sale
     }
 
+    # Add the sale information to the global sales log
     global_account_data['sales'].append(sale_info)
 
-    # Log the sale information
-    if profit:
-        print(f"Sale made for profit: {symbol} at ${sale_price}")
+    # Print the sale details
+    sale_type = "profit" if profit else "loss"
+    print(f"Sale made for {sale_type}: {symbol} at ${sale_price:.2f}")
+
+
+
+    # Function to get all stock orders and filter those matching open positions
+
+
+def get_stock_orders_and_match_open_positions(open_position_symbols):
+    all_orders = r.orders.get_all_stock_orders()
+    print("Stock Orders (Matching Open Positions):")
+    
+    matched_orders = {}
+
+    if all_orders:
+        for order in all_orders:
+            instrument_url = order.get('instrument')
+            
+            if instrument_url:
+                instrument_data = r.stocks.get_instrument_by_url(instrument_url)
+                stock_symbol = instrument_data.get('symbol')
+                
+                if stock_symbol in open_position_symbols:
+                    created_at = order.get('created_at', 'N/A')
+                    print(f"Order for {stock_symbol}: Created at {created_at}")
+                    matched_orders[stock_symbol] = created_at  # Store symbol and its creation date
+            else:
+                print("No instrument URL found in order.")
     else:
-        print(f"Sale made for a loss: {symbol} at ${sale_price}")
+        print("No stock orders found.")
+    
+    return matched_orders

@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 import robin_stocks.robinhood as r
 from utils.account_data import global_account_data, update_global_account_data
+from datetime import datetime
 load_dotenv()
 def login_to_robinhood():
     username = os.getenv('ROBINHOOD_USERNAME')
@@ -10,46 +11,46 @@ def login_to_robinhood():
     if not username or not password:
         raise Exception("ROBINHOOD_USERNAME or ROBINHOOD_PASSWORD not found in the environment variables.")
     r.login(username=username, password=password)
-def get_account_info():
-    account_info = r.profiles.load_account_profile()
-    print("Account Information:")
-    print(account_info)
-def get_portfolio_info():
-    portfolio_info = r.profiles.load_portfolio_profile()
-    print("Portfolio Information:")
-    print(portfolio_info)
-def get_positions():
-    positions = r.account.build_holdings()
-    print("Current Positions:")
-    print(positions)
-def get_open_positions():
-    open_positions = r.account.get_open_stock_positions()
-    print("Open Positions:")
-    print(open_positions)
-def get_open_orders():
-    open_orders = r.orders.get_all_open_stock_orders()
-    print("Raw Open Orders Data:")
-    print(open_orders)  
-    if open_orders:
-        print("Open Order IDs:")
-        for order in open_orders:
-            if 'id' in order:
-                print(order['id'])  
+def get_open_position_symbols():
+    positions = global_account_data.get('positions', {})
+    open_position_symbols = [symbol for symbol in positions]
+    print("Open Position Symbols:")
+    print(open_position_symbols)
+    return open_position_symbols
+def get_stock_orders_and_match_open_positions(open_position_symbols):
+    all_orders = r.orders.get_all_stock_orders()
+    print("Stock Orders (Matching Open Positions):")
+    matched_orders = {}
+    if all_orders:
+        for order in all_orders:
+            instrument_url = order.get('instrument')
+            if instrument_url:
+                instrument_data = r.stocks.get_instrument_by_url(instrument_url)
+                stock_symbol = instrument_data.get('symbol')
+                if stock_symbol in open_position_symbols:
+                    created_at = order.get('created_at', 'N/A')
+                    print(f"Order for {stock_symbol}: Created at {created_at}")
+                    matched_orders[stock_symbol] = created_at  
             else:
-                print("No 'id' found for order:", order)  
+                print("No instrument URL found in order.")
     else:
-        print("No open orders found.")
-def test_print_global_account_data():
-    import json
-    print("Account Info:")
-    print(json.dumps(global_account_data['account_info'], indent=4))
-    print("\nPortfolio Info:")
-    print(json.dumps(global_account_data['portfolio_info'], indent=4))
-    print("\nPositions:")
-    print(json.dumps(global_account_data['positions'], indent=4))
+        print("No stock orders found.")
+    return matched_orders
+def update_global_account_data_with_dates(matched_symbols_dict):
+    positions = global_account_data.get('positions', {})
+    for symbol, created_at in matched_symbols_dict.items():
+        if symbol in positions:
+            positions[symbol]['created_at'] = created_at
+    global_account_data['positions'] = positions  
 if __name__ == "__main__":
     login_to_robinhood()
-    test_print_global_account_data()
+    update_global_account_data()  
+    open_position_symbols = get_open_position_symbols()
+    matched_symbols_dict = get_stock_orders_and_match_open_positions(open_position_symbols)
+    update_global_account_data_with_dates(matched_symbols_dict)
+    print("\nUpdated Global Account Data:")
+    import json
+    print(json.dumps(global_account_data, indent=4))
 
 # data_loader.py
 from utils.api import sanitize_ticker_symbols
@@ -105,8 +106,6 @@ def log_final_portfolio_size(portfolio_size):
 def log_current_positions(positions):
     print("\n--- Current Positions ---\n")
     if positions:
-        print("Complete positions dictionary before modification:")
-        print(json.dumps(positions, indent=4))  
         for symbol, data in positions.items():
             if 'purchase_date' in data:
                 try:
@@ -116,6 +115,7 @@ def log_current_positions(positions):
             else:
                 days_held = 0
             positions[symbol]['days_held'] = days_held
+            created_at = data.get('created_at', 'N/A')
             print(f"{colored('Stock:', 'cyan')} {colored(data['name'], 'yellow')}")
             quantity = float(data['quantity'])
             print(f" - {colored('Quantity:', 'blue')} {colored(f'{quantity:.8f}', 'magenta')} shares")
@@ -125,9 +125,8 @@ def log_current_positions(positions):
             print(f" - {colored('Equity:', 'blue')} {colored(f'${float(data['equity']):.2f}', 'green')}")
             print(f" - {colored('Percent Change:', 'blue')} {colored(f'{float(data['percent_change']):.2f}%', 'green')}")
             print(f" - {colored('Equity Change:', 'blue')} {colored(f'${float(data['equity_change']):.6f}', 'green')}")
-            print(f" - {colored('Days Held:', 'blue')} {colored(f'{days_held}', 'green')} days\n")
-        print("Complete positions dictionary after modification (with days_held):")
-        print(json.dumps(positions, indent=4))  
+            print(f" - {colored('Days Held:', 'blue')} {colored(f'{days_held}', 'green')} days")
+            print(f" - {colored('Created At:', 'blue')} {colored(f'{created_at}', 'green')}\n")
     else:
         print("No positions found.")
 def log_top_trades(top_trades):
@@ -153,7 +152,7 @@ def log_top_three_trades(top_trades):
 # bot.py
 from utils.api import get_top_movers, load_csv_data, sanitize_ticker_symbols
 from utils.account_data import global_account_data, update_global_account_data
-from utils.trading import analyze_stock, send_trade_summary, execute_trade
+from utils.trading import analyze_stock, send_trade_summary, execute_trade, check_positions_against_atr, get_stock_orders_and_match_open_positions, close_trades_open_for_ten_days
 from utils.trade_state import calculate_current_risk, get_open_trades
 from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE, MAX_DAILY_LOSS, USE_CSV_DATA, ATR_THRESHOLDS  
 from data_loader import load_stock_symbols  
@@ -163,11 +162,17 @@ import logger
 import json
 def main():
     update_global_account_data()
+    close_trades_open_for_ten_days(global_account_data['positions'])
+    check_positions_against_atr(global_account_data)
     simulated = SIMULATED  
     portfolio_size = SIMULATED_PORTFOLIO_SIZE if simulated else float(global_account_data['portfolio_info']['equity'])  
     max_daily_loss = portfolio_size * MAX_DAILY_LOSS
-    open_positions = r.account.get_open_stock_positions()  
-    open_trades = get_open_trades(open_positions)  
+    open_position_symbols = [symbol for symbol in global_account_data['positions']]  
+    matched_orders = get_stock_orders_and_match_open_positions(open_position_symbols)
+    for symbol, created_at in matched_orders.items():
+        if symbol in global_account_data['positions']:
+            global_account_data['positions'][symbol]['created_at'] = created_at  
+    open_trades = get_open_trades(global_account_data['positions'])  
     current_risk_percent, current_risk_dollar = calculate_current_risk(open_trades, portfolio_size)
     risk_available_for_new_trades = max_daily_loss - current_risk_dollar
     if USE_CSV_DATA:
@@ -217,14 +222,13 @@ import logging
 import signal
 import sys
 from bot import main
-from utils.trading import check_open_positions_sell_points
 from datetime import datetime, time as datetime_time
-import time  
+import time
 logging.basicConfig(filename='bot_schedule.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 def market_hours():
     now = datetime.now().time()
-    market_open = datetime_time(9, 30)  
-    market_close = datetime_time(16, 0)  
+    market_open = datetime_time(9, 30)
+    market_close = datetime_time(16, 0)
     return market_open <= now <= market_close
 def run_main():
     try:
@@ -235,15 +239,6 @@ def run_main():
             logging.info("Running main every 5 hours during non-market hours...")
     except Exception as e:
         logging.error(f"Error occurred during run_main: {e}")
-def run_check_positions():
-    try:
-        if market_hours():
-            logging.info("Checking positions every 5 minutes during market hours...")
-            check_open_positions_sell_points()
-        else:
-            logging.info("Checking positions every 5 hours during non-market hours...")
-    except Exception as e:
-        logging.error(f"Error occurred during run_check_positions: {e}")
 def signal_handler(sig, frame):
     logging.info("Received termination signal. Shutting down...")
     logging.info("Scheduler stopped at: %s", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
@@ -252,14 +247,12 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 logging.info("Scheduler started at: %s", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 schedule.every(1).minute.do(lambda: run_main() if market_hours() else None)
-schedule.every(5).minutes.do(lambda: run_check_positions() if market_hours() else None)
 schedule.every(5).hours.do(lambda: run_main() if not market_hours() else None)
-schedule.every(5).hours.do(lambda: run_check_positions() if not market_hours() else None)
 logging.info("Scheduler running...")
 while True:
     try:
         schedule.run_pending()
-        time.sleep(1)  
+        time.sleep(1)
     except Exception as e:
         logging.error(f"Error in the scheduler loop: {e}")
 
@@ -404,25 +397,24 @@ def calculate_current_risk(open_trades, portfolio_size):
         total_risk_percent += position_risk_percent
         total_risk_dollar += position_risk_dollar
     return total_risk_percent, total_risk_dollar  
-def get_open_trades(open_positions):
+def get_open_trades(positions):
     open_trades = []
-    for position in open_positions:
-        symbol = position.get('symbol', 'N/A')
-        quantity = float(position.get('quantity', 0))
-        purchase_price = float(position.get('average_buy_price', 0))
+    for symbol, data in positions.items():  
+        quantity = float(data.get('quantity', 0))
+        purchase_price = float(data.get('average_buy_price', 0))
         historical_data = fetch_historical_data(symbol)
         atr = calculate_atr(historical_data)
         atr_percent = (atr / purchase_price) * 100
         stop_loss = purchase_price - (2 * atr)
         stop_limit = purchase_price + (2 * atr)
         trade = TradeState(
-            symbol=symbol,
+            symbol=symbol,  
             quantity=quantity,
             purchase_price=purchase_price,
             atr_percent=atr_percent,
             stop_loss=stop_loss,
             stop_limit=stop_limit,
-            order_id=position.get('id', 'N/A'),
+            order_id=data.get('id', 'N/A'),
             side="buy",
             order_status="open"
         )
@@ -472,19 +464,16 @@ def test_print_global_account_data():
     print(global_account_data['portfolio_info'])
     print("\nPositions:")
     print(global_account_data['positions'])
-login_to_robinhood()
-update_global_account_data()
-test_print_global_account_data()
 
 # trading.py
 import robin_stocks.robinhood as r
 from utils.analysis import moving_average, calculate_atr, detect_recent_crossover, check_recent_crossovers
-from utils.api import fetch_historical_data, order_buy_market, get_positions
+from utils.api import fetch_historical_data, order_buy_market
 from utils.settings import SIMULATED, MAX_DAILY_LOSS, ATR_THRESHOLDS, PHONE_NUMBER
 from utils.send_message import send_text_message
 from utils.trade_state import TradeState,calculate_current_risk, get_open_trades
 from termcolor import colored
-from datetime import datetime
+from datetime import datetime, timedelta
 def is_market_open():
     from datetime import datetime, time
     now = datetime.now().time()
@@ -547,7 +536,7 @@ def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULA
             print(f"{stock} had a Bullish Crossover but was not eligible due to ATR or risk criteria.\n")
     return True  
 def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
-    positions = get_positions()
+    positions = global_account_data['positions']  
     if trade['Stock'] in positions:
         print(f"\nTrade for {trade['Stock']} skipped because it's already in the portfolio.")
         return False
@@ -619,7 +608,13 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
         purchase_price = trade.get('Share Price', 0)
         stop_loss = purchase_price - (2 * atr)
         stop_limit = purchase_price + (2 * atr)
-        current_price = float(global_account_data['positions'][trade['Stock']].get('price', purchase_price))  
+        if trade['Trade Made']:
+            if trade['Stock'] in global_account_data['positions']:
+                current_price = float(global_account_data['positions'][trade['Stock']].get('price', purchase_price))
+            else:
+                current_price = purchase_price  
+        else:
+            current_price = purchase_price  
         percent_to_stop_loss = ((current_price - stop_loss) / current_price) * 100
         percent_to_stop_limit = ((stop_limit - current_price) / current_price) * 100
         summary_message += f"Stock: {trade['Stock']}\n"
@@ -659,40 +654,100 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
         summary_message += f"Stop Limit: ${stop_limit:.2f} ({percent_to_stop_limit:.2f}% move from current price)\n"
         summary_message += "\n"
     send_text_message(summary_message)
-def check_open_positions_sell_points():
-    open_positions = r.account.build_holdings()  
-    open_trades = get_open_trades(open_positions)  
-    for trade in open_trades:
-        current_price = float(global_account_data['positions'][trade.symbol].get('price', 0))
-        if current_price >= trade.stop_limit:
-            print(f"Selling {trade.symbol} at {current_price} (Stop Limit: {trade.stop_limit})")
-            order = order_sell_market(trade.symbol, trade.quantity)  
-            print(f"Sell order placed for {trade.symbol}: {order}")
-            profit = current_price > trade.purchase_price
-            add_sale_to_global_data(trade.symbol, profit, current_price)
-        elif current_price <= trade.stop_loss:
-            print(f"Selling {trade.symbol} at {current_price} (Stop Loss: {trade.stop_loss})")
-            order = order_sell_market(trade.symbol, trade.quantity)  
-            print(f"Sell order placed for {trade.symbol}: {order}")
-            profit = current_price > trade.purchase_price
+def check_positions_against_atr(global_account_data):
+    """
+    Checks all open positions to see if they have crossed their ATR-based stop loss or stop limit.
+    If crossed, it triggers a market order to close the position and logs the sale.
+    """
+    positions = global_account_data['positions']
+    positions_closed = False  
+    for symbol, data in positions.items():
+        quantity = float(data.get('quantity', 0))
+        purchase_price = float(data.get('average_buy_price', 0))
+        current_price = float(data.get('price', 0))
+        historical_data = fetch_historical_data(symbol)
+        atr = calculate_atr(historical_data)
+        stop_loss = purchase_price - (2 * atr)
+        stop_limit = purchase_price + (2 * atr)
+        if current_price <= stop_loss:
+            print(f"Position for {symbol} has hit the stop loss at ${stop_loss:.2f}. Closing the position.")
+            close_trade(symbol, quantity, sale_type="Loss", sale_price=current_price)
+            positions_closed = True  
+        elif current_price >= stop_limit:
+            print(f"Position for {symbol} has hit the stop limit at ${stop_limit:.2f}. Closing the position.")
+            close_trade(symbol, quantity, sale_type="Profit", sale_price=current_price)
+            positions_closed = True  
+    if not positions_closed:
+        print("No positions have hit the ATR stop loss or stop limit.")
+def close_trades_open_for_ten_days(positions):
+    """
+    Checks if any trades have been open for more than 10 days.
+    If so, closes the trades and logs the sales.
+    """
+    trades_closed = False  
+    for symbol, data in positions.items():
+        purchase_date_str = data.get('purchase_date')
+        if purchase_date_str:
+            purchase_date = datetime.strptime(purchase_date_str, "%Y-%m-%d")
+            days_held = (datetime.now() - purchase_date).days
+            if days_held > 10:
+                quantity = float(data.get('quantity', 0))
+                current_price = float(data.get('price', 0))
+                print(f"Trade for {symbol} has been open for more than 10 days. Closing the position.")
+                close_trade(symbol, quantity, sale_price=current_price)
+                trades_closed = True  
+    if not trades_closed:
+        print("No trades open more than 10 days.")
+def close_trade(trade):
+    try:
+        result = r.orders.order_sell_market(trade.symbol, trade.quantity)
+        if result and 'id' in result:
+            print(f"Trade {trade.symbol} closed successfully.")
+            current_price = float(global_account_data['positions'][trade.symbol].get('price', 0))
+            purchase_price = float(global_account_data['positions'][trade.symbol].get('average_buy_price', 0))
+            profit = current_price > purchase_price  
             add_sale_to_global_data(trade.symbol, profit, current_price)
         else:
-            print(f"{trade.symbol} has not hit the sell point yet. Current price: {current_price}, "
-                  f"Stop Loss: {trade.stop_loss}, Stop Limit: {trade.stop_limit}")
+            print(f"Failed to close trade for {trade.symbol}. Response: {result}")
+    except Exception as e:
+        print(f"Exception occurred while closing trade: {e}")
 def add_sale_to_global_data(symbol, profit, sale_price):
+    """
+    Logs the sale of a stock position in the global account data, marking whether the sale was for a profit or loss.
+    :param symbol: The stock symbol of the sold position.
+    :param profit: Boolean value indicating if the sale was profitable (True) or a loss (False).
+    :param sale_price: The price at which the stock was sold.
+    """
     if 'sales' not in global_account_data:
-        global_account_data['sales'] = []
+        global_account_data['sales'] = []  
     sale_info = {
         'symbol': symbol,
         'profit': profit,
         'sale_price': sale_price,
-        'sale_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        'sale_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S")  
     }
     global_account_data['sales'].append(sale_info)
-    if profit:
-        print(f"Sale made for profit: {symbol} at ${sale_price}")
+    sale_type = "profit" if profit else "loss"
+    print(f"Sale made for {sale_type}: {symbol} at ${sale_price:.2f}")
+def get_stock_orders_and_match_open_positions(open_position_symbols):
+    all_orders = r.orders.get_all_stock_orders()
+    print("Stock Orders (Matching Open Positions):")
+    matched_orders = {}
+    if all_orders:
+        for order in all_orders:
+            instrument_url = order.get('instrument')
+            if instrument_url:
+                instrument_data = r.stocks.get_instrument_by_url(instrument_url)
+                stock_symbol = instrument_data.get('symbol')
+                if stock_symbol in open_position_symbols:
+                    created_at = order.get('created_at', 'N/A')
+                    print(f"Order for {stock_symbol}: Created at {created_at}")
+                    matched_orders[stock_symbol] = created_at  
+            else:
+                print("No instrument URL found in order.")
     else:
-        print(f"Sale made for a loss: {symbol} at ${sale_price}")
+        print("No stock orders found.")
+    return matched_orders
 
 # api.py
 import robin_stocks.robinhood as r
@@ -707,10 +762,6 @@ def login_to_robinhood():
     username = os.getenv('ROBINHOOD_USERNAME')
     password = os.getenv('ROBINHOOD_PASSWORD')
     r.login(username=username, password=password)
-def get_positions():
-    positions = r.account.build_holdings()
-    print(f"Current Positions: {positions}")
-    return positions
 def order_buy_market(symbol, quantity):
     try:
         order = r.orders.order_buy_market(symbol, quantity)

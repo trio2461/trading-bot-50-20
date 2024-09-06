@@ -15,11 +15,6 @@ def login_to_robinhood():
     r.login(username=username, password=password)
 
 
-def get_positions():
-    positions = r.account.build_holdings()
-    print(f"Current Positions: {positions}")
-    return positions
-
 def order_buy_market(symbol, quantity):
     try:
         order = r.orders.order_buy_market(symbol, quantity)

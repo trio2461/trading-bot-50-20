@@ -53,36 +53,28 @@ def calculate_current_risk(open_trades, portfolio_size):
     return total_risk_percent, total_risk_dollar  # Return both percent and dollar risk
 
 
-def get_open_trades(open_positions):
+def get_open_trades(positions):
     open_trades = []
-    for position in open_positions:
-        symbol = position.get('symbol', 'N/A')
-        quantity = float(position.get('quantity', 0))
-        purchase_price = float(position.get('average_buy_price', 0))
-        
-        # Fetch ATR data
+    for symbol, data in positions.items():  # Iterate over the items in positions
+        quantity = float(data.get('quantity', 0))
+        purchase_price = float(data.get('average_buy_price', 0))
         historical_data = fetch_historical_data(symbol)
         atr = calculate_atr(historical_data)
         atr_percent = (atr / purchase_price) * 100
-        
-        # Calculate stop loss and stop limit
         stop_loss = purchase_price - (2 * atr)
         stop_limit = purchase_price + (2 * atr)
-
-        # Create TradeState object
         trade = TradeState(
-            symbol=symbol,
+            symbol=symbol,  # Use the symbol from the key
             quantity=quantity,
             purchase_price=purchase_price,
             atr_percent=atr_percent,
             stop_loss=stop_loss,
             stop_limit=stop_limit,
-            order_id=position.get('id', 'N/A'),
+            order_id=data.get('id', 'N/A'),
             side="buy",
             order_status="open"
         )
         open_trades.append(trade)
-    
     return open_trades
 
 
@@ -90,12 +82,14 @@ def check_position_status(position_id):  # Renamed from check_order_status
     position_info = r.account.get_stock_position_info(position_id)  # Adjusted method call
     return position_info['state']
 
+
 def close_expired_trades(open_trades, portfolio_size):
     current_date = datetime.now()
     for trade in open_trades:
         if trade.is_expired(current_date):
             print(f"Closing expired trade: {trade.symbol}")
             close_trade(trade)
+
 
 def close_trade(trade):
     r.orders.order_sell_market(trade.symbol, trade.quantity)
