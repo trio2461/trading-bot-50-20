@@ -222,19 +222,30 @@ import sys
 from bot import main
 from datetime import datetime, time as datetime_time
 import time
+import requests
 logging.basicConfig(filename='bot_schedule.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 def market_hours():
     now = datetime.now().time()
     market_open = datetime_time(9, 30)
     market_close = datetime_time(16, 0)
     return market_open <= now <= market_close
+def check_internet():
+    try:
+        requests.get("https://www.google.com", timeout=5)
+        return True
+    except requests.ConnectionError:
+        return False
 def run_main():
     try:
-        if market_hours():
-            logging.info("Running main every minute during market hours...")
-            main()
+        if check_internet():
+            if market_hours():
+                logging.info("Running main every minute during market hours...")
+                main()
+            else:
+                logging.info("Running main every 5 hours during non-market hours...")
         else:
-            logging.info("Running main every 5 hours during non-market hours...")
+            logging.warning("No internet connection. Retrying in 30 seconds...")
+            time.sleep(30)  
     except Exception as e:
         logging.error(f"Error occurred during run_main: {e}")
 def signal_handler(sig, frame):
@@ -244,7 +255,7 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 logging.info("Scheduler started at: %s", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-schedule.every(1).minute.do(lambda: run_main() if market_hours() else None)
+schedule.every(5).minutes.do(lambda: run_main() if market_hours() else None)
 schedule.every(5).hours.do(lambda: run_main() if not market_hours() else None)
 logging.info("Scheduler running...")
 while True:
@@ -593,34 +604,46 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
         }
         return True
 def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades, global_account_data, simulated=False):
-    summary_message = "\n--- Trade Summary ---\n"
+    important_update = ""
+    if 'sales' in global_account_data and global_account_data['sales']:
+        important_update += "SOLD SOMETHING, PLEASE READ\n"
+    for trade in top_trades:
+        if trade['Trade Made']:
+            important_update += "PURCHASE MADE, PLEASE READ\n"
+            break
+    summary_message = f"\n--- Trade Summary ---\n{important_update}\n"
     mode = "SIMULATED" if simulated else "LIVE"
     summary_message += f"Mode: {mode}\n\n"
-    if 'sales' in global_account_data:
+    if 'sales' in global_account_data and global_account_data['sales']:
         summary_message += "--- Sales Made ---\n"
         for sale in global_account_data['sales']:
             sale_type = "Profit" if sale['profit'] else "Loss"
             summary_message += f"{sale['symbol']} - {sale_type} at ${sale['sale_price']:.2f} on {sale['sale_time']}\n"
         summary_message += "\n"
-    summary_message += "--- Top Trades ---\n"
-    for trade in top_trades:
-        atr = trade.get('ATR', 0)
-        atr_percent = trade.get('ATR Percent', 0)
-        trade_amount = trade.get('Trade Amount', 0)
-        shares_to_purchase = trade.get('Shares to Purchase', 0)
-        purchase_price = trade.get('Share Price', 0)
-        stop_loss = purchase_price - (2 * atr)
-        stop_limit = purchase_price + (2 * atr)
-        summary_message += f"Stock: {trade['Stock']}\n"
-        summary_message += f"Trade Made: {trade['Trade Made']}\n"
-        if trade['Trade Made']:
-            summary_message += f"Trade Amount: ${trade_amount:.2f}\n"
-            summary_message += f"Shares to Purchase: {shares_to_purchase:.2f} shares\n"
-            summary_message += f"Potential Gain: ${trade['Potential Gain']:.2f}\n"
-            summary_message += f"Risk Percent: {trade['Risk Percent']:.2f}%\n"
-            summary_message += f"ATR: ${atr:.2f} (ATR Percent: {atr_percent:.2f}%)\n"
-            summary_message += f"Stop Loss: ${stop_loss:.2f}, Stop Limit: ${stop_limit:.2f}\n"
-        summary_message += "\n"
+    else:
+        summary_message += "--- No Sales Made ---\n"
+    if top_trades:
+        summary_message += "--- Top Trades ---\n"
+        for trade in top_trades:
+            atr = trade.get('ATR', 0)
+            atr_percent = trade.get('ATR Percent', 0)
+            trade_amount = trade.get('Trade Amount', 0)
+            shares_to_purchase = trade.get('Shares to Purchase', 0)
+            purchase_price = trade.get('Share Price', 0)
+            stop_loss = purchase_price - (2 * atr)
+            stop_limit = purchase_price + (2 * atr)
+            summary_message += f"Stock: {trade['Stock']}\n"
+            summary_message += f"Trade Made: {trade['Trade Made']}\n"
+            if trade['Trade Made']:
+                summary_message += f"Trade Amount: ${trade_amount:.2f}\n"
+                summary_message += f"Shares to Purchase: {shares_to_purchase:.2f} shares\n"
+                summary_message += f"Potential Gain: ${trade['Potential Gain']:.2f}\n"
+                summary_message += f"Risk Percent: {trade['Risk Percent']:.2f}%\n"
+                summary_message += f"ATR: ${atr:.2f} (ATR Percent: {atr_percent:.2f}%)\n"
+                summary_message += f"Stop Loss: ${stop_loss:.2f}, Stop Limit: ${stop_limit:.2f}\n"
+            summary_message += "\n"
+    else:
+        summary_message += "--- No Trades Made ---\n"
     summary_message += f"\nPortfolio Size: ${portfolio_size:.2f}\n"
     summary_message += f"Current Risk: {current_risk_percent:.2f}%\n"
     summary_message += "\n--- Open Trades ---\n"

@@ -177,18 +177,34 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
 
 
 def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades, global_account_data, simulated=False):
-    summary_message = "\n--- Trade Summary ---\n"
+    important_update = ""
+    
+    # Check if any sales were made
+    if 'sales' in global_account_data and global_account_data['sales']:
+        important_update += "SOLD SOMETHING, PLEASE READ\n"
+    else:
+        important_update += "No sales made\n"
+    
+    # Check if any purchases were made (from top trades)
+    trade_made = any(trade['Trade Made'] for trade in top_trades)
+    if trade_made:
+        important_update += "PURCHASE MADE, PLEASE READ\n"
+    else:
+        important_update += "No trades made\n"
+
+    summary_message = f"\n--- Trade Summary ---\n{important_update}\n"
     mode = "SIMULATED" if simulated else "LIVE"
     summary_message += f"Mode: {mode}\n\n"
-    
-    if 'sales' in global_account_data:
+
+    # Add sales information if available
+    if 'sales' in global_account_data and global_account_data['sales']:
         summary_message += "--- Sales Made ---\n"
         for sale in global_account_data['sales']:
             sale_type = "Profit" if sale['profit'] else "Loss"
             summary_message += f"{sale['symbol']} - {sale_type} at ${sale['sale_price']:.2f} on {sale['sale_time']}\n"
         summary_message += "\n"
-    
-    # Display Top Trades section
+
+    # Add top trades summary
     summary_message += "--- Top Trades ---\n"
     for trade in top_trades:
         atr = trade.get('ATR', 0)
@@ -201,7 +217,6 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
 
         summary_message += f"Stock: {trade['Stock']}\n"
         summary_message += f"Trade Made: {trade['Trade Made']}\n"
-        
         if trade['Trade Made']:
             summary_message += f"Trade Amount: ${trade_amount:.2f}\n"
             summary_message += f"Shares to Purchase: {shares_to_purchase:.2f} shares\n"
@@ -210,13 +225,12 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
             summary_message += f"ATR: ${atr:.2f} (ATR Percent: {atr_percent:.2f}%)\n"
             summary_message += f"Stop Loss: ${stop_loss:.2f}, Stop Limit: ${stop_limit:.2f}\n"
         summary_message += "\n"
-    
-    # Show portfolio size and current risk
+
     summary_message += f"\nPortfolio Size: ${portfolio_size:.2f}\n"
     summary_message += f"Current Risk: {current_risk_percent:.2f}%\n"
-    
-    # Display Open Trades section
     summary_message += "\n--- Open Trades ---\n"
+    
+    # List open trades
     for trade in open_trades:
         historical_data = fetch_historical_data(trade.symbol)
         atr = calculate_atr(historical_data)
@@ -250,8 +264,8 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
         summary_message += f"Days Held: {days_held} days\n"
         summary_message += "\n"
     
-    # Send the summary message
     send_text_message(summary_message)
+
 
 def check_positions_against_atr(global_account_data):
     """

@@ -1,5 +1,3 @@
-# Removed run_check_positions function
-
 # bot_schedule.py
 import schedule
 import logging
@@ -8,6 +6,7 @@ import sys
 from bot import main
 from datetime import datetime, time as datetime_time
 import time
+import requests
 
 logging.basicConfig(filename='bot_schedule.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -17,17 +16,26 @@ def market_hours():
     market_close = datetime_time(16, 0)
     return market_open <= now <= market_close
 
+def check_internet():
+    try:
+        requests.get("https://www.google.com", timeout=5)
+        return True
+    except requests.ConnectionError:
+        return False
+
 def run_main():
     try:
-        if market_hours():
-            logging.info("Running main every minute during market hours...")
-            main()
+        if check_internet():
+            if market_hours():
+                logging.info("Running main every minute during market hours...")
+                main()
+            else:
+                logging.info("Running main every 5 hours during non-market hours...")
         else:
-            logging.info("Running main every 5 hours during non-market hours...")
+            logging.warning("No internet connection. Retrying in 30 seconds...")
+            time.sleep(30)  # Wait for 30 seconds before retrying
     except Exception as e:
         logging.error(f"Error occurred during run_main: {e}")
-
-# Removed run_check_positions and its scheduling
 
 def signal_handler(sig, frame):
     logging.info("Received termination signal. Shutting down...")
@@ -39,7 +47,7 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 logging.info("Scheduler started at: %s", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
-schedule.every(1).minute.do(lambda: run_main() if market_hours() else None)
+schedule.every(5).minutes.do(lambda: run_main() if market_hours() else None)
 schedule.every(5).hours.do(lambda: run_main() if not market_hours() else None)
 
 logging.info("Scheduler running...")
