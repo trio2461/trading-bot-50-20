@@ -34,31 +34,32 @@ def log_current_positions(positions):
     print("\n--- Current Positions ---\n")
     if positions:
         for symbol, data in positions.items():
-            if 'purchase_date' in data:
+            # Check if purchase_date is available, otherwise use created_at
+            purchase_date_str = data.get('purchase_date') or data.get('created_at', None)
+            print(f"Debug: Purchase date for {symbol}: {purchase_date_str}")
+
+            if purchase_date_str:
                 try:
-                    days_held = (datetime.now() - datetime.strptime(data['purchase_date'], "%Y-%m-%d")).days
+                    # Parse the purchase date (or created_at)
+                    purchase_date = datetime.strptime(purchase_date_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+                    days_held = (datetime.now() - purchase_date).days
                 except ValueError:
-                    days_held = 0  
+                    print(f"Error parsing purchase date for {symbol}, setting days held to 0")
+                    days_held = 0
             else:
+                print(f"No purchase date or created_at for {symbol}, setting days held to 0")
                 days_held = 0
+
+            # Update days held in the global data
             positions[symbol]['days_held'] = days_held
-            
-            # Fetch created_at if available
             created_at = data.get('created_at', 'N/A')
             
-            print(f"{colored('Stock:', 'cyan')} {colored(data['name'], 'yellow')}")
-            quantity = float(data['quantity'])
-            print(f" - {colored('Quantity:', 'blue')} {colored(f'{quantity:.8f}', 'magenta')} shares")
-            price = float(data['price'])
-            print(f" - {colored('Current Price:', 'blue')} {colored(f'${price:.2f}', 'green')}")
-            print(f" - {colored('Average Buy Price:', 'blue')} {colored(f'${float(data['average_buy_price']):.4f}', 'green')}")
-            print(f" - {colored('Equity:', 'blue')} {colored(f'${float(data['equity']):.2f}', 'green')}")
-            print(f" - {colored('Percent Change:', 'blue')} {colored(f'{float(data['percent_change']):.2f}%', 'green')}")
-            print(f" - {colored('Equity Change:', 'blue')} {colored(f'${float(data['equity_change']):.6f}', 'green')}")
-            print(f" - {colored('Days Held:', 'blue')} {colored(f'{days_held}', 'green')} days")
-            print(f" - {colored('Created At:', 'blue')} {colored(f'{created_at}', 'green')}\n")
+            print(f"Stock: {colored(data['name'], 'yellow')}")
+            print(f" - Days Held: {colored(f'{days_held}', 'green')} days")
+            print(f" - Created At: {colored(f'{created_at}', 'green')}\n")
     else:
         print("No positions found.")
+
 
 def log_top_trades(top_trades):
     print(colored("\n--- Summary of Top Three Bullish Crossover Trades ---", 'yellow'))

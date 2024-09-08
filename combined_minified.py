@@ -107,26 +107,23 @@ def log_current_positions(positions):
     print("\n--- Current Positions ---\n")
     if positions:
         for symbol, data in positions.items():
-            if 'purchase_date' in data:
+            purchase_date_str = data.get('purchase_date') or data.get('created_at', None)
+            print(f"Debug: Purchase date for {symbol}: {purchase_date_str}")
+            if purchase_date_str:
                 try:
-                    days_held = (datetime.now() - datetime.strptime(data['purchase_date'], "%Y-%m-%d")).days
+                    purchase_date = datetime.strptime(purchase_date_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+                    days_held = (datetime.now() - purchase_date).days
                 except ValueError:
-                    days_held = 0  
+                    print(f"Error parsing purchase date for {symbol}, setting days held to 0")
+                    days_held = 0
             else:
+                print(f"No purchase date or created_at for {symbol}, setting days held to 0")
                 days_held = 0
             positions[symbol]['days_held'] = days_held
             created_at = data.get('created_at', 'N/A')
-            print(f"{colored('Stock:', 'cyan')} {colored(data['name'], 'yellow')}")
-            quantity = float(data['quantity'])
-            print(f" - {colored('Quantity:', 'blue')} {colored(f'{quantity:.8f}', 'magenta')} shares")
-            price = float(data['price'])
-            print(f" - {colored('Current Price:', 'blue')} {colored(f'${price:.2f}', 'green')}")
-            print(f" - {colored('Average Buy Price:', 'blue')} {colored(f'${float(data['average_buy_price']):.4f}', 'green')}")
-            print(f" - {colored('Equity:', 'blue')} {colored(f'${float(data['equity']):.2f}', 'green')}")
-            print(f" - {colored('Percent Change:', 'blue')} {colored(f'{float(data['percent_change']):.2f}%', 'green')}")
-            print(f" - {colored('Equity Change:', 'blue')} {colored(f'${float(data['equity_change']):.6f}', 'green')}")
-            print(f" - {colored('Days Held:', 'blue')} {colored(f'{days_held}', 'green')} days")
-            print(f" - {colored('Created At:', 'blue')} {colored(f'{created_at}', 'green')}\n")
+            print(f"Stock: {colored(data['name'], 'yellow')}")
+            print(f" - Days Held: {colored(f'{days_held}', 'green')} days")
+            print(f" - Created At: {colored(f'{created_at}', 'green')}\n")
     else:
         print("No positions found.")
 def log_top_trades(top_trades):
@@ -150,7 +147,7 @@ def log_top_three_trades(top_trades):
               f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
 
 # bot.py
-from utils.api import get_top_movers, load_csv_data, sanitize_ticker_symbols
+from utils.api import get_top_movers, load_csv_data, sanitize_ticker_symbols, login_to_robinhood
 from utils.account_data import global_account_data, update_global_account_data
 from utils.trading import analyze_stock, send_trade_summary, execute_trade, check_positions_against_atr, get_stock_orders_and_match_open_positions, close_trades_open_for_ten_days
 from utils.trade_state import calculate_current_risk, get_open_trades
@@ -161,6 +158,7 @@ from tqdm import tqdm
 import logger  
 import json
 def main():
+    login_to_robinhood();
     update_global_account_data()
     close_trades_open_for_ten_days(global_account_data['positions'])
     check_positions_against_atr(global_account_data)
@@ -448,10 +446,6 @@ def update_risk_in_global_data(new_risk_percent, new_risk_dollar):
 def reset_risk_in_global_data():
     global_account_data['risk_percent'] = 0.0
     global_account_data['risk_dollar'] = 0.0
-def login_to_robinhood():
-    username = os.getenv('ROBINHOOD_USERNAME')
-    password = os.getenv('ROBINHOOD_PASSWORD')
-    r.login(username=username, password=password)
 def update_global_account_data():
     global global_account_data
     global_account_data['account_info'] = r.profiles.load_account_profile()
@@ -555,7 +549,7 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
                 extendedHours=False,  
                 jsonify=True
             )
-            print(f"Order result: {order_result}")  
+            print(f"Order result: {order_result}")
             if isinstance(order_result, dict):
                 order_id = order_result.get('id')
                 if order_id:
@@ -568,7 +562,8 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
                             'name': trade['Stock'],
                             'quantity': trade['Shares to Purchase'],
                             'price': trade['Share Price'],
-                            'purchase_date': datetime.now().strftime("%Y-%m-%d")  
+                            'purchase_date': datetime.now().strftime("%Y-%m-%d"),  
+                            'created_at': datetime.now().isoformat()  
                         }
                         print(f"Trade executed for {trade['Stock']}. Order ID: {order_id}")
                         return True
@@ -589,6 +584,13 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
         trade['Trade Made'] = True
         trade['Order Status'] = "Simulated"
         trade['Order ID'] = "SIM12345"
+        global_account_data['positions'][trade['Stock']] = {
+            'name': trade['Stock'],
+            'quantity': trade['Shares to Purchase'],
+            'price': trade['Share Price'],
+            'purchase_date': datetime.now().strftime("%Y-%m-%d"),  
+            'created_at': datetime.now().isoformat()  
+        }
         return True
 def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades, global_account_data, simulated=False):
     summary_message = "\n--- Trade Summary ---\n"
@@ -600,6 +602,7 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
             sale_type = "Profit" if sale['profit'] else "Loss"
             summary_message += f"{sale['symbol']} - {sale_type} at ${sale['sale_price']:.2f} on {sale['sale_time']}\n"
         summary_message += "\n"
+    summary_message += "--- Top Trades ---\n"
     for trade in top_trades:
         atr = trade.get('ATR', 0)
         atr_percent = trade.get('ATR Percent', 0)
@@ -608,26 +611,15 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
         purchase_price = trade.get('Share Price', 0)
         stop_loss = purchase_price - (2 * atr)
         stop_limit = purchase_price + (2 * atr)
-        if trade['Trade Made']:
-            if trade['Stock'] in global_account_data['positions']:
-                current_price = float(global_account_data['positions'][trade['Stock']].get('price', purchase_price))
-            else:
-                current_price = purchase_price  
-        else:
-            current_price = purchase_price  
-        percent_to_stop_loss = ((current_price - stop_loss) / current_price) * 100
-        percent_to_stop_limit = ((stop_limit - current_price) / current_price) * 100
         summary_message += f"Stock: {trade['Stock']}\n"
         summary_message += f"Trade Made: {trade['Trade Made']}\n"
-        summary_message += f"Trade Amount: ${trade_amount:.2f}\n"
-        summary_message += f"Shares to Purchase: {shares_to_purchase:.2f} shares\n"
-        summary_message += f"Potential Gain: ${trade['Potential Gain']:.2f}\n"
-        summary_message += f"Risk Percent: {trade['Risk Percent']:.2f}%\n"
-        summary_message += f"Risk Dollar: ${trade['Risk Dollar']:.2f}\n"
-        summary_message += f"ATR: ${atr:.2f} (Average True Range in dollars)\n"
-        summary_message += f"ATR Percent: {atr_percent:.2f}% (ATR as percent of the stock price)\n"
-        summary_message += f"Stop Loss: ${stop_loss:.2f} ({percent_to_stop_loss:.2f}% move from current price)\n"
-        summary_message += f"Stop Limit: ${stop_limit:.2f} ({percent_to_stop_limit:.2f}% move from current price)\n"
+        if trade['Trade Made']:
+            summary_message += f"Trade Amount: ${trade_amount:.2f}\n"
+            summary_message += f"Shares to Purchase: {shares_to_purchase:.2f} shares\n"
+            summary_message += f"Potential Gain: ${trade['Potential Gain']:.2f}\n"
+            summary_message += f"Risk Percent: {trade['Risk Percent']:.2f}%\n"
+            summary_message += f"ATR: ${atr:.2f} (ATR Percent: {atr_percent:.2f}%)\n"
+            summary_message += f"Stop Loss: ${stop_loss:.2f}, Stop Limit: ${stop_limit:.2f}\n"
         summary_message += "\n"
     summary_message += f"\nPortfolio Size: ${portfolio_size:.2f}\n"
     summary_message += f"Current Risk: {current_risk_percent:.2f}%\n"
@@ -642,16 +634,25 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
         stop_limit = purchase_price + (2 * atr)
         percent_to_stop_loss = ((current_price - stop_loss) / current_price) * 100
         percent_to_stop_limit = ((stop_limit - current_price) / current_price) * 100
+        created_at = global_account_data['positions'][trade.symbol].get('created_at', 'N/A')
+        if created_at != 'N/A':
+            try:
+                created_date = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%S.%fZ")
+                days_held = (datetime.now() - created_date).days
+            except ValueError:
+                days_held = 0
+        else:
+            days_held = 0
         summary_message += f"Symbol: {trade.symbol}\n"
         summary_message += f"Quantity: {trade.quantity:.4f}\n"
         summary_message += f"Purchase Price: ${purchase_price:.2f}\n"
         summary_message += f"Price: ${current_price:.2f}\n"
         summary_message += f"Risk: ${trade.risk:.2f}\n"
-        summary_message += f"Side: {trade.side.capitalize()}\n"
-        summary_message += f"ATR: ${atr:.2f} (Average True Range in dollars)\n"
-        summary_message += f"ATR Percent: {atr_percent:.2f}% (ATR as percent of stock price)\n"
+        summary_message += f"ATR: ${atr:.2f} (ATR Percent: {atr_percent:.2f}%)\n"
         summary_message += f"Stop Loss: ${stop_loss:.2f} ({percent_to_stop_loss:.2f}% move from current price)\n"
         summary_message += f"Stop Limit: ${stop_limit:.2f} ({percent_to_stop_limit:.2f}% move from current price)\n"
+        summary_message += f"Created At: {created_at}\n"
+        summary_message += f"Days Held: {days_held} days\n"
         summary_message += "\n"
     send_text_message(summary_message)
 def check_positions_against_atr(global_account_data):

@@ -90,39 +90,59 @@ def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULA
 
 
 def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
-    positions = global_account_data['positions']  # Now uses global_account_data instead of get_positions()
+    positions = global_account_data['positions']  # Get current positions
+
+    # Check if the stock is already in the portfolio
     if trade['Stock'] in positions:
         print(f"\nTrade for {trade['Stock']} skipped because it's already in the portfolio.")
         return False
+
+    # Calculate the new risk percentage after the trade
     new_risk_percent = (trade['Risk Dollar'] / portfolio_size) * 100
     total_risk_after_trade = current_risk_percent + new_risk_percent
+
+    # If the total risk exceeds the max allowed risk, skip the trade
     if total_risk_after_trade > (MAX_DAILY_LOSS * 100):
         print(f"Trade for {trade['Stock']} skipped due to exceeding max risk limits.")
         return False
+
+    # Print log for the trade execution
     print(colored(f"Executing fractional trade for: {trade['Stock']}, Simulated={simulated}, Amount: ${trade['Trade Amount']:.2f}", 'green'))
+
+    # Simulated or real trade execution
     if is_market_open() and not simulated:
         try:
+            # Execute a real trade
             order_result = r.orders.order_buy_fractional_by_price(
                 symbol=trade['Stock'],
                 amountInDollars=trade['Trade Amount'],
                 timeInForce='gfd',
-                extendedHours=False,  
+                extendedHours=False,  # Regular trading hours
                 jsonify=True
             )
-            print(f"Order result: {order_result}")  
+
+            # Check if the order was successfully created
+            print(f"Order result: {order_result}")
             if isinstance(order_result, dict):
                 order_id = order_result.get('id')
+
+                # If the order ID exists, check the order status
                 if order_id:
                     order_status = check_order_status(order_id)
+
+                    # If the order was filled, update global account data
                     if order_status == 'filled':
                         trade['Trade Made'] = True
                         trade['Order Status'] = order_status
                         trade['Order ID'] = order_id
+
+                        # Update the global account data with purchase details
                         global_account_data['positions'][trade['Stock']] = {
                             'name': trade['Stock'],
                             'quantity': trade['Shares to Purchase'],
                             'price': trade['Share Price'],
-                            'purchase_date': datetime.now().strftime("%Y-%m-%d")  
+                            'purchase_date': datetime.now().strftime("%Y-%m-%d"),  # Correct date format for purchase date
+                            'created_at': datetime.now().isoformat()  # Also storing the created_at field for consistency
                         }
                         print(f"Trade executed for {trade['Stock']}. Order ID: {order_id}")
                         return True
@@ -139,10 +159,20 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
             print(f"Exception occurred while executing trade: {e}")
             return False
     else:
+        # Simulated trade or trade outside of market hours
         print(f"Simulated or out-of-hours trade for {trade['Stock']}.")
         trade['Trade Made'] = True
         trade['Order Status'] = "Simulated"
         trade['Order ID'] = "SIM12345"
+
+        # Update the global account data with purchase details for the simulated trade
+        global_account_data['positions'][trade['Stock']] = {
+            'name': trade['Stock'],
+            'quantity': trade['Shares to Purchase'],
+            'price': trade['Share Price'],
+            'purchase_date': datetime.now().strftime("%Y-%m-%d"),  # Correct date format for purchase date
+            'created_at': datetime.now().isoformat()  # Also storing the created_at field
+        }
         return True
 
 
@@ -151,7 +181,6 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
     mode = "SIMULATED" if simulated else "LIVE"
     summary_message += f"Mode: {mode}\n\n"
     
-    # Add the sales summary
     if 'sales' in global_account_data:
         summary_message += "--- Sales Made ---\n"
         for sale in global_account_data['sales']:
@@ -159,6 +188,8 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
             summary_message += f"{sale['symbol']} - {sale_type} at ${sale['sale_price']:.2f} on {sale['sale_time']}\n"
         summary_message += "\n"
     
+    # Display Top Trades section
+    summary_message += "--- Top Trades ---\n"
     for trade in top_trades:
         atr = trade.get('ATR', 0)
         atr_percent = trade.get('ATR Percent', 0)
@@ -168,34 +199,23 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
         stop_loss = purchase_price - (2 * atr)
         stop_limit = purchase_price + (2 * atr)
 
-        # If the trade is made, fetch the current price from positions
-        if trade['Trade Made']:
-            if trade['Stock'] in global_account_data['positions']:
-                current_price = float(global_account_data['positions'][trade['Stock']].get('price', purchase_price))
-            else:
-                current_price = purchase_price  # Fallback to purchase price if not found
-        else:
-            current_price = purchase_price  # Fallback to purchase price for trades not yet made
-
-        percent_to_stop_loss = ((current_price - stop_loss) / current_price) * 100
-        percent_to_stop_limit = ((stop_limit - current_price) / current_price) * 100
-
         summary_message += f"Stock: {trade['Stock']}\n"
         summary_message += f"Trade Made: {trade['Trade Made']}\n"
-        summary_message += f"Trade Amount: ${trade_amount:.2f}\n"
-        summary_message += f"Shares to Purchase: {shares_to_purchase:.2f} shares\n"
-        summary_message += f"Potential Gain: ${trade['Potential Gain']:.2f}\n"
-        summary_message += f"Risk Percent: {trade['Risk Percent']:.2f}%\n"
-        summary_message += f"Risk Dollar: ${trade['Risk Dollar']:.2f}\n"
-        summary_message += f"ATR: ${atr:.2f} (Average True Range in dollars)\n"
-        summary_message += f"ATR Percent: {atr_percent:.2f}% (ATR as percent of the stock price)\n"
-        summary_message += f"Stop Loss: ${stop_loss:.2f} ({percent_to_stop_loss:.2f}% move from current price)\n"
-        summary_message += f"Stop Limit: ${stop_limit:.2f} ({percent_to_stop_limit:.2f}% move from current price)\n"
+        
+        if trade['Trade Made']:
+            summary_message += f"Trade Amount: ${trade_amount:.2f}\n"
+            summary_message += f"Shares to Purchase: {shares_to_purchase:.2f} shares\n"
+            summary_message += f"Potential Gain: ${trade['Potential Gain']:.2f}\n"
+            summary_message += f"Risk Percent: {trade['Risk Percent']:.2f}%\n"
+            summary_message += f"ATR: ${atr:.2f} (ATR Percent: {atr_percent:.2f}%)\n"
+            summary_message += f"Stop Loss: ${stop_loss:.2f}, Stop Limit: ${stop_limit:.2f}\n"
         summary_message += "\n"
     
+    # Show portfolio size and current risk
     summary_message += f"\nPortfolio Size: ${portfolio_size:.2f}\n"
     summary_message += f"Current Risk: {current_risk_percent:.2f}%\n"
-
+    
+    # Display Open Trades section
     summary_message += "\n--- Open Trades ---\n"
     for trade in open_trades:
         historical_data = fetch_historical_data(trade.symbol)
@@ -207,21 +227,31 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
         stop_limit = purchase_price + (2 * atr)
         percent_to_stop_loss = ((current_price - stop_loss) / current_price) * 100
         percent_to_stop_limit = ((stop_limit - current_price) / current_price) * 100
-
+        
+        created_at = global_account_data['positions'][trade.symbol].get('created_at', 'N/A')
+        if created_at != 'N/A':
+            try:
+                created_date = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%S.%fZ")
+                days_held = (datetime.now() - created_date).days
+            except ValueError:
+                days_held = 0
+        else:
+            days_held = 0
+        
         summary_message += f"Symbol: {trade.symbol}\n"
         summary_message += f"Quantity: {trade.quantity:.4f}\n"
         summary_message += f"Purchase Price: ${purchase_price:.2f}\n"
         summary_message += f"Price: ${current_price:.2f}\n"
         summary_message += f"Risk: ${trade.risk:.2f}\n"
-        summary_message += f"Side: {trade.side.capitalize()}\n"
-        summary_message += f"ATR: ${atr:.2f} (Average True Range in dollars)\n"
-        summary_message += f"ATR Percent: {atr_percent:.2f}% (ATR as percent of stock price)\n"
+        summary_message += f"ATR: ${atr:.2f} (ATR Percent: {atr_percent:.2f}%)\n"
         summary_message += f"Stop Loss: ${stop_loss:.2f} ({percent_to_stop_loss:.2f}% move from current price)\n"
         summary_message += f"Stop Limit: ${stop_limit:.2f} ({percent_to_stop_limit:.2f}% move from current price)\n"
+        summary_message += f"Created At: {created_at}\n"
+        summary_message += f"Days Held: {days_held} days\n"
         summary_message += "\n"
     
+    # Send the summary message
     send_text_message(summary_message)
-
 
 def check_positions_against_atr(global_account_data):
     """
@@ -280,6 +310,7 @@ def close_trades_open_for_ten_days(positions):
 
     if not trades_closed:
         print("No trades open more than 10 days.")
+
 
 def close_trade(trade):
     try:
