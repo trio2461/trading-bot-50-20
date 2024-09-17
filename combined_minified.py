@@ -146,6 +146,28 @@ def log_top_three_trades(top_trades):
               f"Eligible: {colored(trade['Eligible for Trade'], 'blue')}, Trade Amount: {colored(f'${trade['Trade Amount']:.2f}', 'magenta')}, "
               f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
 
+# kill_bot.py
+import os
+import signal
+import subprocess
+def find_and_kill_process(process_name):
+    try:
+        result = subprocess.run(['pgrep', '-f', process_name], stdout=subprocess.PIPE)
+        pids = result.stdout.decode().strip().split('\n')
+        if not pids or pids == ['']:
+            print(f"No running process found for: {process_name}")
+            return
+        print(f"Found {len(pids)} process(es) for {process_name}: {', '.join(pids)}")
+        for pid in pids:
+            print(f"Killing process {pid}...")
+            os.kill(int(pid), signal.SIGTERM)
+            print(f"Process {pid} terminated.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+if __name__ == "__main__":
+    process_name = "bot_schedule.py"
+    find_and_kill_process(process_name)
+
 # bot.py
 from utils.api import get_top_movers, load_csv_data, sanitize_ticker_symbols, login_to_robinhood
 from utils.account_data import global_account_data, update_global_account_data
@@ -219,51 +241,49 @@ import schedule
 import logging
 import signal
 import sys
-from bot import main
-from datetime import datetime, time as datetime_time
+from bot import main  
+from datetime import datetime
 import time
-import requests
+import os
+import subprocess
 logging.basicConfig(filename='bot_schedule.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-def market_hours():
-    now = datetime.now().time()
-    market_open = datetime_time(9, 30)
-    market_close = datetime_time(16, 0)
-    return market_open <= now <= market_close
-def check_internet():
+def kill_existing_process():
     try:
-        requests.get("https://www.google.com", timeout=5)
-        return True
-    except requests.ConnectionError:
-        return False
-def run_main():
-    try:
-        if check_internet():
-            if market_hours():
-                logging.info("Running main every minute during market hours...")
-                main()
-            else:
-                logging.info("Running main every 5 hours during non-market hours...")
-        else:
-            logging.warning("No internet connection. Retrying in 30 seconds...")
-            time.sleep(30)  
+        result = subprocess.run(['pgrep', '-f', 'bot_schedule.py'], stdout=subprocess.PIPE)
+        pids = result.stdout.decode().strip().split('\n')
+        for pid in pids:
+            if pid and int(pid) != os.getpid():
+                print(f"Killing existing bot_schedule.py process with PID: {pid}")
+                os.kill(int(pid), signal.SIGTERM)
+                logging.info(f"Killed existing bot_schedule.py process with PID: {pid}")
     except Exception as e:
-        logging.error(f"Error occurred during run_main: {e}")
+        logging.error(f"Error killing existing process: {e}")
+        print(f"Error killing existing process: {e}")
+kill_existing_process()
+def log_and_print(message):
+    print(message)
+    logging.info(message)
 def signal_handler(sig, frame):
-    logging.info("Received termination signal. Shutting down...")
-    logging.info("Scheduler stopped at: %s", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    log_and_print("Received termination signal. Shutting down...")
     sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
-logging.info("Scheduler started at: %s", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-schedule.every(5).minutes.do(lambda: run_main() if market_hours() else None)
-schedule.every(5).hours.do(lambda: run_main() if not market_hours() else None)
-logging.info("Scheduler running...")
+def run_main():
+    try:
+        log_and_print("Running bot's main() function...")
+        main()  
+    except Exception as e:
+        logging.error(f"Error in run_main: {e}")
+        print(f"Error in run_main: {e}")
+log_and_print("Starting bot scheduler...")
+schedule.every(15).minutes.do(run_main)
 while True:
     try:
         schedule.run_pending()
         time.sleep(1)
     except Exception as e:
         logging.error(f"Error in the scheduler loop: {e}")
+        print(f"Error in the scheduler loop: {e}")
 
 # gpt.py
 import os
@@ -472,6 +492,7 @@ def test_print_global_account_data():
 
 # trading.py
 import robin_stocks.robinhood as r
+from utils.account_data import global_account_data, update_global_account_data
 from utils.analysis import moving_average, calculate_atr, detect_recent_crossover, check_recent_crossovers
 from utils.api import fetch_historical_data, order_buy_market
 from utils.settings import SIMULATED, MAX_DAILY_LOSS, ATR_THRESHOLDS, PHONE_NUMBER
@@ -548,8 +569,11 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
     new_risk_percent = (trade['Risk Dollar'] / portfolio_size) * 100
     total_risk_after_trade = current_risk_percent + new_risk_percent
     if total_risk_after_trade > (MAX_DAILY_LOSS * 100):
-        print(f"Trade for {trade['Stock']} skipped due to exceeding max risk limits.")
-        return False
+        if total_risk_after_trade <= ((MAX_DAILY_LOSS * 100) + 0.5) and new_risk_percent >= 1.25:
+            print(f"Executing trade for {trade['Stock']} with slightly reduced risk allowance (1.5%-2%).")
+        else:
+            print(f"Trade for {trade['Stock']} skipped due to exceeding max risk limits.")
+            return False
     print(colored(f"Executing fractional trade for: {trade['Stock']}, Simulated={simulated}, Amount: ${trade['Trade Amount']:.2f}", 'green'))
     if is_market_open() and not simulated:
         try:
@@ -607,10 +631,13 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
     important_update = ""
     if 'sales' in global_account_data and global_account_data['sales']:
         important_update += "SOLD SOMETHING, PLEASE READ\n"
-    for trade in top_trades:
-        if trade['Trade Made']:
-            important_update += "PURCHASE MADE, PLEASE READ\n"
-            break
+    else:
+        important_update += "No sales made\n"
+    trade_made = any(trade['Trade Made'] for trade in top_trades)
+    if trade_made:
+        important_update += "PURCHASE MADE, PLEASE READ\n"
+    else:
+        important_update += "No trades made\n"
     summary_message = f"\n--- Trade Summary ---\n{important_update}\n"
     mode = "SIMULATED" if simulated else "LIVE"
     summary_message += f"Mode: {mode}\n\n"
@@ -620,30 +647,25 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
             sale_type = "Profit" if sale['profit'] else "Loss"
             summary_message += f"{sale['symbol']} - {sale_type} at ${sale['sale_price']:.2f} on {sale['sale_time']}\n"
         summary_message += "\n"
-    else:
-        summary_message += "--- No Sales Made ---\n"
-    if top_trades:
-        summary_message += "--- Top Trades ---\n"
-        for trade in top_trades:
-            atr = trade.get('ATR', 0)
-            atr_percent = trade.get('ATR Percent', 0)
-            trade_amount = trade.get('Trade Amount', 0)
-            shares_to_purchase = trade.get('Shares to Purchase', 0)
-            purchase_price = trade.get('Share Price', 0)
-            stop_loss = purchase_price - (2 * atr)
-            stop_limit = purchase_price + (2 * atr)
-            summary_message += f"Stock: {trade['Stock']}\n"
-            summary_message += f"Trade Made: {trade['Trade Made']}\n"
-            if trade['Trade Made']:
-                summary_message += f"Trade Amount: ${trade_amount:.2f}\n"
-                summary_message += f"Shares to Purchase: {shares_to_purchase:.2f} shares\n"
-                summary_message += f"Potential Gain: ${trade['Potential Gain']:.2f}\n"
-                summary_message += f"Risk Percent: {trade['Risk Percent']:.2f}%\n"
-                summary_message += f"ATR: ${atr:.2f} (ATR Percent: {atr_percent:.2f}%)\n"
-                summary_message += f"Stop Loss: ${stop_loss:.2f}, Stop Limit: ${stop_limit:.2f}\n"
-            summary_message += "\n"
-    else:
-        summary_message += "--- No Trades Made ---\n"
+    summary_message += "--- Top Trades ---\n"
+    for trade in top_trades:
+        atr = trade.get('ATR', 0)
+        atr_percent = trade.get('ATR Percent', 0)
+        trade_amount = trade.get('Trade Amount', 0)
+        shares_to_purchase = trade.get('Shares to Purchase', 0)
+        purchase_price = trade.get('Share Price', 0)
+        stop_loss = purchase_price - (2 * atr)
+        stop_limit = purchase_price + (2 * atr)
+        summary_message += f"Stock: {trade['Stock']}\n"
+        summary_message += f"Trade Made: {trade['Trade Made']}\n"
+        if trade['Trade Made']:
+            summary_message += f"Trade Amount: ${trade_amount:.2f}\n"
+            summary_message += f"Shares to Purchase: {shares_to_purchase:.2f} shares\n"
+            summary_message += f"Potential Gain: ${trade['Potential Gain']:.2f}\n"
+            summary_message += f"Risk Percent: {trade['Risk Percent']:.2f}%\n"
+            summary_message += f"ATR: ${atr:.2f} (ATR Percent: {atr_percent:.2f}%)\n"
+            summary_message += f"Stop Loss: ${stop_loss:.2f}, Stop Limit: ${stop_limit:.2f}\n"
+        summary_message += "\n"
     summary_message += f"\nPortfolio Size: ${portfolio_size:.2f}\n"
     summary_message += f"Current Risk: {current_risk_percent:.2f}%\n"
     summary_message += "\n--- Open Trades ---\n"
@@ -722,19 +744,34 @@ def close_trades_open_for_ten_days(positions):
                 trades_closed = True  
     if not trades_closed:
         print("No trades open more than 10 days.")
-def close_trade(trade):
+def close_trade(symbol, quantity, sale_price, sale_type=None):
     try:
-        result = r.orders.order_sell_market(trade.symbol, trade.quantity)
+        result = r.orders.order_sell_market(symbol, quantity)
+        print(f"Attempting to sell {quantity} shares of {symbol} at market price.")
+        print(f"Response from Robinhood: {result}")
         if result and 'id' in result:
-            print(f"Trade {trade.symbol} closed successfully.")
-            current_price = float(global_account_data['positions'][trade.symbol].get('price', 0))
-            purchase_price = float(global_account_data['positions'][trade.symbol].get('average_buy_price', 0))
-            profit = current_price > purchase_price  
-            add_sale_to_global_data(trade.symbol, profit, current_price)
+            print(f"Trade {symbol} closed successfully.")
+            current_price = float(global_account_data['positions'][symbol].get('price', 0))
+            purchase_price = float(global_account_data['positions'][symbol].get('average_buy_price', 0))
+            profit = current_price > purchase_price
+            add_sale_to_global_data(symbol, profit, current_price, sale_type)
         else:
-            print(f"Failed to close trade for {trade.symbol}. Response: {result}")
+            print(f"Failed to close trade for {symbol}. Response: {result}")
     except Exception as e:
         print(f"Exception occurred while closing trade: {e}")
+def add_sale_to_global_data(symbol, profit, sale_price, sale_type=None):
+    if 'sales' not in global_account_data:
+        global_account_data['sales'] = []
+    sale_info = {
+        'symbol': symbol,
+        'profit': profit,
+        'sale_price': sale_price,
+        'sale_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'sale_type': sale_type
+    }
+    global_account_data['sales'].append(sale_info)
+    sale_type_display = "profit" if profit else "loss"
+    print(f"Sale made for {sale_type_display}: {symbol} at ${sale_price:.2f}")
 def add_sale_to_global_data(symbol, profit, sale_price):
     """
     Logs the sale of a stock position in the global account data, marking whether the sale was for a profit or loss.
@@ -847,7 +884,7 @@ def sanitize_ticker_symbols(df):
 # settings.py
 SIMULATED = False  
 SIMULATED_PORTFOLIO_SIZE = 20000  
-MAX_DAILY_LOSS = 0.06  
+MAX_DAILY_LOSS = 0.065  
 PHONE_NUMBER = '252-571-5303'
 USE_CSV_DATA = True  
 USE_NASDAQ_DATA = False  

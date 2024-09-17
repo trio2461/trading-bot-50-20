@@ -1,60 +1,68 @@
-# bot_schedule.py
 import schedule
 import logging
 import signal
 import sys
-from bot import main
-from datetime import datetime, time as datetime_time
+from bot import main  # Ensure this is importing the correct 'main' function
+from datetime import datetime
 import time
-import requests
+import os
+import subprocess
 
+# Setup logging
 logging.basicConfig(filename='bot_schedule.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def market_hours():
-    now = datetime.now().time()
-    market_open = datetime_time(9, 30)
-    market_close = datetime_time(16, 0)
-    return market_open <= now <= market_close
-
-def check_internet():
+# Ensure any previous 'bot_schedule.py' processes are killed
+def kill_existing_process():
     try:
-        requests.get("https://www.google.com", timeout=5)
-        return True
-    except requests.ConnectionError:
-        return False
-
-def run_main():
-    try:
-        if check_internet():
-            if market_hours():
-                logging.info("Running main every minute during market hours...")
-                main()
-            else:
-                logging.info("Running main every 5 hours during non-market hours...")
-        else:
-            logging.warning("No internet connection. Retrying in 30 seconds...")
-            time.sleep(30)  # Wait for 30 seconds before retrying
+        result = subprocess.run(['pgrep', '-f', 'bot_schedule.py'], stdout=subprocess.PIPE)
+        pids = result.stdout.decode().strip().split('\n')
+        for pid in pids:
+            if pid and int(pid) != os.getpid():
+                print(f"Killing existing bot_schedule.py process with PID: {pid}")
+                os.kill(int(pid), signal.SIGTERM)
+                logging.info(f"Killed existing bot_schedule.py process with PID: {pid}")
     except Exception as e:
-        logging.error(f"Error occurred during run_main: {e}")
+        logging.error(f"Error killing existing process: {e}")
+        print(f"Error killing existing process: {e}")
 
+kill_existing_process()
+
+# Debugging Helper
+def log_and_print(message):
+    print(message)
+    logging.info(message)
+
+# Signal handling for termination
 def signal_handler(sig, frame):
-    logging.info("Received termination signal. Shutting down...")
-    logging.info("Scheduler stopped at: %s", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    log_and_print("Received termination signal. Shutting down...")
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-logging.info("Scheduler started at: %s", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+# Main function to run bot logic
+def run_main():
+    try:
+        log_and_print("Running bot's main() function...")
+        main()  # Call to bot.py's main function
+    except Exception as e:
+        logging.error(f"Error in run_main: {e}")
+        print(f"Error in run_main: {e}")
 
-schedule.every(5).minutes.do(lambda: run_main() if market_hours() else None)
-schedule.every(5).hours.do(lambda: run_main() if not market_hours() else None)
+# Scheduler setup
+log_and_print("Starting bot scheduler...")
 
-logging.info("Scheduler running...")
+# For testing, we are running every 30 seconds (you can switch this to 5 minutes)
+# schedule.every(59).seconds.do(run_main)
 
+# # Uncomment for production
+schedule.every(15).minutes.do(run_main)
+
+# Scheduler loop
 while True:
     try:
         schedule.run_pending()
         time.sleep(1)
     except Exception as e:
         logging.error(f"Error in the scheduler loop: {e}")
+        print(f"Error in the scheduler loop: {e}")

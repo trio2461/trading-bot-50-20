@@ -3,7 +3,7 @@
 # General Settings
 SIMULATED = False  # Set this to False when going live
 SIMULATED_PORTFOLIO_SIZE = 20000  # Portfolio size when running in simulated mode
-MAX_DAILY_LOSS = 0.06  # Max daily loss limit as a percentage of the portfolio
+MAX_DAILY_LOSS = 0.065  # Max daily loss limit as a percentage of the portfolio
 PHONE_NUMBER = '252-571-5303'
 
 # Data Source Settings

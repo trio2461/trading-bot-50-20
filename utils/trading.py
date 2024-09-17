@@ -1,5 +1,6 @@
 # utils/trading.py
 import robin_stocks.robinhood as r
+from utils.account_data import global_account_data, update_global_account_data
 from utils.analysis import moving_average, calculate_atr, detect_recent_crossover, check_recent_crossovers
 from utils.api import fetch_historical_data, order_buy_market
 from utils.settings import SIMULATED, MAX_DAILY_LOSS, ATR_THRESHOLDS, PHONE_NUMBER
@@ -90,59 +91,48 @@ def analyze_stock(stock, results, portfolio_size, current_risk, simulated=SIMULA
 
 
 def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
-    positions = global_account_data['positions']  # Get current positions
-
-    # Check if the stock is already in the portfolio
+    positions = global_account_data['positions']  
     if trade['Stock'] in positions:
         print(f"\nTrade for {trade['Stock']} skipped because it's already in the portfolio.")
         return False
 
-    # Calculate the new risk percentage after the trade
     new_risk_percent = (trade['Risk Dollar'] / portfolio_size) * 100
     total_risk_after_trade = current_risk_percent + new_risk_percent
 
-    # If the total risk exceeds the max allowed risk, skip the trade
+    # Allow the trade if total risk is between 1.25% and 2%, but not exceeding MAX_DAILY_LOSS
     if total_risk_after_trade > (MAX_DAILY_LOSS * 100):
-        print(f"Trade for {trade['Stock']} skipped due to exceeding max risk limits.")
-        return False
+        if total_risk_after_trade <= ((MAX_DAILY_LOSS * 100) + 0.5) and new_risk_percent >= 1.25:
+            print(f"Executing trade for {trade['Stock']} with slightly reduced risk allowance (1.5%-2%).")
+        else:
+            print(f"Trade for {trade['Stock']} skipped due to exceeding max risk limits.")
+            return False
 
-    # Print log for the trade execution
     print(colored(f"Executing fractional trade for: {trade['Stock']}, Simulated={simulated}, Amount: ${trade['Trade Amount']:.2f}", 'green'))
-
-    # Simulated or real trade execution
+    
     if is_market_open() and not simulated:
         try:
-            # Execute a real trade
             order_result = r.orders.order_buy_fractional_by_price(
                 symbol=trade['Stock'],
                 amountInDollars=trade['Trade Amount'],
                 timeInForce='gfd',
-                extendedHours=False,  # Regular trading hours
+                extendedHours=False,  
                 jsonify=True
             )
-
-            # Check if the order was successfully created
             print(f"Order result: {order_result}")
             if isinstance(order_result, dict):
                 order_id = order_result.get('id')
-
-                # If the order ID exists, check the order status
                 if order_id:
                     order_status = check_order_status(order_id)
-
-                    # If the order was filled, update global account data
                     if order_status == 'filled':
                         trade['Trade Made'] = True
                         trade['Order Status'] = order_status
                         trade['Order ID'] = order_id
-
-                        # Update the global account data with purchase details
                         global_account_data['positions'][trade['Stock']] = {
                             'name': trade['Stock'],
                             'quantity': trade['Shares to Purchase'],
                             'price': trade['Share Price'],
-                            'purchase_date': datetime.now().strftime("%Y-%m-%d"),  # Correct date format for purchase date
-                            'created_at': datetime.now().isoformat()  # Also storing the created_at field for consistency
+                            'purchase_date': datetime.now().strftime("%Y-%m-%d"),  
+                            'created_at': datetime.now().isoformat()  
                         }
                         print(f"Trade executed for {trade['Stock']}. Order ID: {order_id}")
                         return True
@@ -159,19 +149,16 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
             print(f"Exception occurred while executing trade: {e}")
             return False
     else:
-        # Simulated trade or trade outside of market hours
         print(f"Simulated or out-of-hours trade for {trade['Stock']}.")
         trade['Trade Made'] = True
         trade['Order Status'] = "Simulated"
         trade['Order ID'] = "SIM12345"
-
-        # Update the global account data with purchase details for the simulated trade
         global_account_data['positions'][trade['Stock']] = {
             'name': trade['Stock'],
             'quantity': trade['Shares to Purchase'],
             'price': trade['Share Price'],
-            'purchase_date': datetime.now().strftime("%Y-%m-%d"),  # Correct date format for purchase date
-            'created_at': datetime.now().isoformat()  # Also storing the created_at field
+            'purchase_date': datetime.now().strftime("%Y-%m-%d"),  
+            'created_at': datetime.now().isoformat()  
         }
         return True
 
@@ -292,11 +279,11 @@ def check_positions_against_atr(global_account_data):
         if current_price <= stop_loss:
             print(f"Position for {symbol} has hit the stop loss at ${stop_loss:.2f}. Closing the position.")
             close_trade(symbol, quantity, sale_type="Loss", sale_price=current_price)
-            positions_closed = True  # Mark as a closed position
+            positions_closed = True  
         elif current_price >= stop_limit:
             print(f"Position for {symbol} has hit the stop limit at ${stop_limit:.2f}. Closing the position.")
             close_trade(symbol, quantity, sale_type="Profit", sale_price=current_price)
-            positions_closed = True  # Mark as a closed position
+            positions_closed = True  
 
     if not positions_closed:
         print("No positions have hit the ATR stop loss or stop limit.")
@@ -326,23 +313,42 @@ def close_trades_open_for_ten_days(positions):
         print("No trades open more than 10 days.")
 
 
-def close_trade(trade):
+def close_trade(symbol, quantity, sale_price, sale_type=None):
     try:
-        result = r.orders.order_sell_market(trade.symbol, trade.quantity)
+        # Use 'gtc' for fractional orders to avoid 'Invalid time in force' error
+        result = r.orders.order_sell_fractional_by_quantity(
+            symbol=symbol,
+            quantity=quantity,
+            timeInForce='gfd'
+        )
+        print(f"Attempting to sell {quantity} shares of {symbol} at market price with GTC time in force.")
+        print(f"Response from Robinhood: {result}")
+        
         if result and 'id' in result:
-            print(f"Trade {trade.symbol} closed successfully.")
-            
-            # Determine if the trade was profitable or not
-            current_price = float(global_account_data['positions'][trade.symbol].get('price', 0))
-            purchase_price = float(global_account_data['positions'][trade.symbol].get('average_buy_price', 0))
-            profit = current_price > purchase_price  # True if sold at a profit
-
-            # Add the sale to global account data
-            add_sale_to_global_data(trade.symbol, profit, current_price)
+            print(f"Trade {symbol} closed successfully.")
+            current_price = float(global_account_data['positions'][symbol].get('price', 0))
+            purchase_price = float(global_account_data['positions'][symbol].get('average_buy_price', 0))
+            profit = current_price > purchase_price
+            add_sale_to_global_data(symbol, profit, current_price, sale_type)
         else:
-            print(f"Failed to close trade for {trade.symbol}. Response: {result}")
+            print(f"Failed to close trade for {symbol}. Response: {result}")
     except Exception as e:
         print(f"Exception occurred while closing trade: {e}")
+
+def add_sale_to_global_data(symbol, profit, sale_price, sale_type=None):
+    if 'sales' not in global_account_data:
+        global_account_data['sales'] = []
+
+    sale_info = {
+        'symbol': symbol,
+        'profit': profit,
+        'sale_price': sale_price,
+        'sale_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'sale_type': sale_type
+    }
+    global_account_data['sales'].append(sale_info)
+    sale_type_display = "profit" if profit else "loss"
+    print(f"Sale made for {sale_type_display}: {symbol} at ${sale_price:.2f}")
 
 
 def add_sale_to_global_data(symbol, profit, sale_price):

@@ -3,16 +3,39 @@ import robin_stocks.robinhood as r
 import os
 import logging
 import contextlib
+import pickle
 import pandas as pd
 from dotenv import load_dotenv  # Import the function to load environment variables
 from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE  # Import settings
 
 load_dotenv()
 
+
 def login_to_robinhood():
     username = os.getenv('ROBINHOOD_USERNAME')
     password = os.getenv('ROBINHOOD_PASSWORD')
-    r.login(username=username, password=password)
+    
+    if not username or not password:
+        print("Username or password not found in environment variables.")
+        return
+    
+    try:
+        # Attempt to login with MFA
+        print(f"Attempting to log in with Username: {username}")
+        mfa_code = input("Enter MFA code (if you received it, otherwise press Enter to skip): ").strip()
+        
+        # Login with or without MFA code based on user input
+        if mfa_code:
+            login_data = r.authentication.login(username=username, password=password, mfa_code=mfa_code)
+        else:
+            login_data = r.authentication.login(username=username, password=password)
+
+        print("Login successful!")
+        print(login_data)  # To check the response
+        return login_data
+
+    except Exception as e:
+        print(f"Login failed: {e}")
 
 
 def order_buy_market(symbol, quantity):
