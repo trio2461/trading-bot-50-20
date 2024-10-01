@@ -7,36 +7,77 @@ import pickle
 import pandas as pd
 from dotenv import load_dotenv  # Import the function to load environment variables
 from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE  # Import settings
-
+# Load environment variables (ROBINHOOD_USERNAME and ROBINHOOD_PASSWORD)
 load_dotenv()
 
+# Set up logging
+logging.basicConfig(filename='robinhood_login.log', level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Path to save the login session
+PICKLE_NAME = 'robinhood_session.pkl'
+
+def save_session(session_data):
+    """Save the session data to a pickle file."""
+    with open(PICKLE_NAME, 'wb') as f:
+        pickle.dump(session_data, f)
+    print(f"Session data saved to {PICKLE_NAME}.")
+
+def load_session():
+    """Load the session data from a pickle file."""
+    if os.path.exists(PICKLE_NAME):
+        with open(PICKLE_NAME, 'rb') as f:
+            session_data = pickle.load(f)
+            r.authentication.set_login_state(session_data)
+            print(f"Session data loaded from {PICKLE_NAME}.")
+            return True
+    return False
 
 def login_to_robinhood():
+    # Attempt to load a saved session
+    if load_session():
+        print("Session loaded. No need to log in again.")
+        return
+
     username = os.getenv('ROBINHOOD_USERNAME')
     password = os.getenv('ROBINHOOD_PASSWORD')
-    
-    if not username or not password:
-        print("Username or password not found in environment variables.")
-        return
-    
-    try:
-        # Attempt to login with MFA
-        print(f"Attempting to log in with Username: {username}")
-        mfa_code = input("Enter MFA code (if you received it, otherwise press Enter to skip): ").strip()
-        
-        # Login with or without MFA code based on user input
-        if mfa_code:
-            login_data = r.authentication.login(username=username, password=password, mfa_code=mfa_code)
-        else:
-            login_data = r.authentication.login(username=username, password=password)
 
-        print("Login successful!")
-        print(login_data)  # To check the response
-        return login_data
+    if not username or not password:
+        logging.error("Username or password not found in environment variables.")
+        print("Username or password not found in environment variables.")
+        return None
+
+    try:
+        print(f"Attempting to log in with Username: {username}")
+
+        # Prompt for MFA code, but allow skipping by pressing Enter
+        mfa_code = input("Enter MFA code (if needed, otherwise press Enter to skip): ").strip()
+
+        # Log in to Robinhood
+        login_data = r.authentication.login(
+            username=username,
+            password=password,
+            mfa_code=mfa_code if mfa_code else None,
+            store_session=False  # We will manually handle session saving
+        )
+
+        # Check if login was successful
+        if 'access_token' in login_data:
+            print("Login successful!")
+            logging.info("Login successful!")
+
+            # Manually save the session data
+            save_session(r.authentication.get_login_state())
+            return login_data
+        else:
+            print(f"Login failed: {login_data}")
+            logging.error(f"Login failed: {login_data}")
+            return None
 
     except Exception as e:
         print(f"Login failed: {e}")
-
+        logging.error(f"Login failed: {e}")
+        return None
 
 def order_buy_market(symbol, quantity):
     try:
@@ -67,6 +108,7 @@ def fetch_historical_data(stock, interval='day', span='3month'):
         logging.error(f"Failed to fetch data for {stock}: {e}")
         return None
 
+
 def get_top_movers(direction='up'):
     try:
         movers = r.markets.get_top_movers_sp500(direction=direction)
@@ -76,12 +118,14 @@ def get_top_movers(direction='up'):
         logging.error(f"Failed to fetch top movers: {e}")
         return []
 
+
 def get_portfolio_size(simulated=SIMULATED, simulated_size=SIMULATED_PORTFOLIO_SIZE):  # Use settings for defaults
     if simulated:
         return simulated_size
     else:
         portfolio = r.profiles.load_account_profile(info='portfolio_cash')
         return float(portfolio)
+
 
 def load_csv_data(file_path, exchange):
     df = pd.read_csv(file_path)
@@ -91,6 +135,7 @@ def load_csv_data(file_path, exchange):
         return df[['Symbol']]  # Use 'Symbol' for S&P 500
     else:
         raise ValueError("Unsupported exchange. Please use 'nasdaq' or 'sp500'.")
+
 
 def sanitize_ticker_symbols(df):
     """

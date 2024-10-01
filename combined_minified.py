@@ -146,6 +146,119 @@ def log_top_three_trades(top_trades):
               f"Eligible: {colored(trade['Eligible for Trade'], 'blue')}, Trade Amount: {colored(f'${trade['Trade Amount']:.2f}', 'magenta')}, "
               f"Risk Percent: {colored(f'{trade['Risk Percent']:.2f}%', 'red')}")
 
+# scratch-page.py
+def close_trade(symbol, quantity, sale_price, sale_type=None):
+    try:
+        if quantity < 1:
+            print(f"Closing fractional position for {symbol} using market order.")
+            order = r.orders.order_sell_fractional_by_quantity(
+                symbol=symbol,
+                quantity=quantity,
+                timeInForce='gfd',  
+                extendedHours=False  
+            )
+        else:
+            print(f"Closing full share position for {symbol} using market order.")
+            order = r.orders.order_sell_market(
+                symbol=symbol,
+                quantity=quantity,
+                timeInForce='gfd'  
+            )
+        if order and 'id' in order:
+            print(f"Trade {symbol} closed successfully.")
+            current_price = float(global_account_data['positions'][symbol].get('price', 0))
+            purchase_price = float(global_account_data['positions'][symbol].get('average_buy_price', 0))
+            profit = current_price > purchase_price
+            add_sale_to_global_data(symbol, profit, current_price, sale_type)
+        else:
+            print(f"Failed to close trade for {symbol}. Response: {order}")
+    except Exception as e:
+        print(f"Exception occurred while closing trade: {e}")
+Yes, your proposed changes are absolutely feasible and make a lot of sense for organizing backtesting results and making the bot more modular. Here's how we can approach it step by step:
+You want the ability to switch between different backtesting strategies (e.g., MA cross, EMA cross, resistance, etc.). This can be done by creating a list or dictionary of strategies that the bot can iterate through. This list can include flags or values for turning on/off indicators like RSI, ATR, and choosing the strategy type.
+```python
+BACKTEST_STRATEGIES = [
+    {'name': 'MA_Cross', 'use_ema': False, 'use_rsi': True, 'use_atr': True},
+    {'name': 'EMA_Cross', 'use_ema': True, 'use_rsi': True, 'use_atr': True},
+    {'name': 'Resistance', 'use_ema': False, 'use_rsi': False, 'use_atr': True}
+]
+```
+This way, you can switch between strategies by modifying or selecting from this list. Each strategy has parameters to control whether EMA/MA, RSI, or ATR is used.
+We can modify the `run_backtest()` function to adapt to different strategies based on the configuration.
+```python
+def run_backtest(instrument, data, candle_limit=None, strategy=None):
+    trades = []
+    position = None
+    balance = INITIAL_BALANCE
+    daily_loss = 0
+    max_daily_loss = 0.06
+    trade_loss_limit = 0.005
+    current_date = None
+    total_profit = 0
+    total_loss = 0
+    num_trades = 0
+    profit_trades = 0
+    loss_trades = 0
+    if strategy['use_ema']:
+        data = add_moving_averages(data, use_ema=True)
+    else:
+        data = add_moving_averages(data, use_ema=False)
+    if strategy['use_rsi']:
+        data = add_rsi(data)
+    if strategy['use_atr']:
+        data = add_atr(data)
+    candle_count = len(data)
+    if candle_limit is not None:
+        candle_count = min(candle_limit, len(data))
+    start_date = pd.to_datetime(data['time'].iloc[200])  
+    end_date = pd.to_datetime(data['time'].iloc[candle_count - 1])  
+    print(f"Backtest Start Date: {start_date}")
+    print(f"Backtest End Date: {end_date}")
+    return trades
+```
+You want to organize backtest results into subdirectories based on the strategy used. We can dynamically create these directories and save the results accordingly.
+```python
+def save_results(instrument, trades, output_base_dir, strategy):
+    current_time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    strategy_dir = os.path.join(output_base_dir, strategy['name'])  
+    instrument_dir = os.path.join(strategy_dir, instrument)
+    if not os.path.exists(instrument_dir):
+        os.makedirs(instrument_dir)
+    results_filename = f'{instrument_dir}/{instrument}_backtest_results_{strategy["name"]}_{current_time}.csv'
+    trades_df = pd.DataFrame(trades)  
+    trades_df.to_csv(results_filename, index=False)
+    print(f"Backtest results for {instrument} ({strategy['name']}) saved in {results_filename}.")
+```
+You mentioned that the results need to be placed in specific subdirectories like `backtesting_results/MA/` or `backtesting_results/Support_Resistance/`. This will be handled by the `save_results()` function, as shown above, where the strategy name will dictate the subdirectory.
+You can loop over different strategies to perform backtesting based on the configurations.
+```python
+def backtest_instruments(input_dir, output_base_dir, pair=None):
+    for strategy in BACKTEST_STRATEGIES:
+        print(f"Running backtest for strategy: {strategy['name']}")
+        if pair:
+            filepath = os.path.join(input_dir, f"{pair}.csv")
+            if os.path.exists(filepath):
+                df = pd.read_csv(filepath)
+                df = filter_data_by_year_and_month(df, START_YEAR, START_MONTH)
+                trades = run_backtest(pair, df, candle_limit=CANDLE_LIMIT, strategy=strategy)
+                save_results(pair, trades, output_base_dir, strategy)
+            else:
+                print(f"Error: The pair '{pair}' does not exist in the dataset.")
+        else:
+            for file in os.listdir(input_dir):
+                if file.endswith(".csv"):
+                    instrument = file.split(".")[0]
+                    filepath = os.path.join(input_dir, file)
+                    df = pd.read_csv(filepath)
+                    df = filter_data_by_year_and_month(df, START_YEAR, START_MONTH)
+                    trades = run_backtest(instrument, df, candle_limit=CANDLE_LIMIT, strategy=strategy)
+                    save_results(instrument, trades, output_base_dir, strategy)
+```
+- **Dynamic strategy selection**: Strategies are stored in `BACKTEST_STRATEGIES` with parameters for MA, EMA, RSI, and ATR.
+- **Modular backtest function**: The `run_backtest()` function handles different strategies based on the configuration.
+- **Dynamic directory and file naming**: Subdirectories are created based on the strategy type, and file names are descriptive of the strategy and instrument.
+This approach will keep your bot modular, organized, and scalable for future backtesting strategies. Let me know if you need any further refinements or clarifications!
+
 # kill_bot.py
 import os
 import signal
@@ -284,6 +397,20 @@ while True:
     except Exception as e:
         logging.error(f"Error in the scheduler loop: {e}")
         print(f"Error in the scheduler loop: {e}")
+
+# api_test.py
+import robin_stocks.robinhood as r
+import os
+from dotenv import load_dotenv
+load_dotenv()
+def logout_from_robinhood():
+    """Logout from Robinhood and clear the saved session file."""
+    r.authentication.logout()
+    if os.path.exists(PICKLE_NAME):
+        os.remove(PICKLE_NAME)
+    print("Logged out and session file removed.")
+if __name__ == "__main__":
+    logout_from_robinhood()
 
 # gpt.py
 import os
@@ -746,8 +873,12 @@ def close_trades_open_for_ten_days(positions):
         print("No trades open more than 10 days.")
 def close_trade(symbol, quantity, sale_price, sale_type=None):
     try:
-        result = r.orders.order_sell_market(symbol, quantity)
-        print(f"Attempting to sell {quantity} shares of {symbol} at market price.")
+        result = r.orders.order_sell_fractional_by_quantity(
+            symbol=symbol,
+            quantity=quantity,
+            timeInForce='gfd'
+        )
+        print(f"Attempting to sell {quantity} shares of {symbol} at market price with GTC time in force.")
         print(f"Response from Robinhood: {result}")
         if result and 'id' in result:
             print(f"Trade {symbol} closed successfully.")
@@ -815,14 +946,60 @@ import robin_stocks.robinhood as r
 import os
 import logging
 import contextlib
+import pickle
 import pandas as pd
 from dotenv import load_dotenv  
 from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE  
 load_dotenv()
+logging.basicConfig(filename='robinhood_login.log', level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+PICKLE_NAME = 'robinhood_session.pkl'
+def save_session(session_data):
+    """Save the session data to a pickle file."""
+    with open(PICKLE_NAME, 'wb') as f:
+        pickle.dump(session_data, f)
+    print(f"Session data saved to {PICKLE_NAME}.")
+def load_session():
+    """Load the session data from a pickle file."""
+    if os.path.exists(PICKLE_NAME):
+        with open(PICKLE_NAME, 'rb') as f:
+            session_data = pickle.load(f)
+            r.authentication.set_login_state(session_data)
+            print(f"Session data loaded from {PICKLE_NAME}.")
+            return True
+    return False
 def login_to_robinhood():
+    if load_session():
+        print("Session loaded. No need to log in again.")
+        return
     username = os.getenv('ROBINHOOD_USERNAME')
     password = os.getenv('ROBINHOOD_PASSWORD')
-    r.login(username=username, password=password)
+    if not username or not password:
+        logging.error("Username or password not found in environment variables.")
+        print("Username or password not found in environment variables.")
+        return None
+    try:
+        print(f"Attempting to log in with Username: {username}")
+        mfa_code = input("Enter MFA code (if needed, otherwise press Enter to skip): ").strip()
+        login_data = r.authentication.login(
+            username=username,
+            password=password,
+            mfa_code=mfa_code if mfa_code else None,
+            store_session=False  
+        )
+        if 'access_token' in login_data:
+            print("Login successful!")
+            logging.info("Login successful!")
+            save_session(r.authentication.get_login_state())
+            return login_data
+        else:
+            print(f"Login failed: {login_data}")
+            logging.error(f"Login failed: {login_data}")
+            return None
+    except Exception as e:
+        print(f"Login failed: {e}")
+        logging.error(f"Login failed: {e}")
+        return None
 def order_buy_market(symbol, quantity):
     try:
         order = r.orders.order_buy_market(symbol, quantity)

@@ -1,0 +1,83 @@
+2024-09-18 10:38:17,541 - ERROR - Login failed: input(): lost sys.stdout
+2024-09-18 16:10:12,229 - ERROR - Login failed: input(): lost sys.stdout
+2024-09-19 17:23:00,457 - ERROR - Login failed: input(): lost sys.stdout
+2024-09-19 17:31:36,913 - ERROR - Error loading session from pickle file: module 'robin_stocks.robinhood.authentication' has no attribute 'set_oauth_token'
+2024-09-19 17:31:38,409 - INFO - Login successful! Session saved.
+2024-09-19 17:31:41,315 - ERROR - Error loading session from pickle file: module 'robin_stocks.robinhood.authentication' has no attribute 'set_oauth_token'
+2024-09-19 17:34:47,230 - ERROR - Login failed: Unable to log in with provided credentials.
+2024-09-19 17:35:07,541 - ERROR - Login failed: Unable to log in with provided credentials.
+2024-09-19 17:36:42,879 - ERROR - Login failed: Unable to log in with provided credentials.
+2024-09-19 17:37:33,573 - ERROR - Error loading session from pickle file: Ran out of input
+2024-09-19 17:37:33,574 - ERROR - Login failed: input(): lost sys.stdout
+2024-09-19 17:37:38,613 - ERROR - Error loading session from pickle file: Ran out of input
+2024-09-19 17:37:38,613 - ERROR - Login failed: input(): lost sys.stdout
+2024-09-19 17:37:43,722 - ERROR - Error loading session from pickle file: Ran out of input
+2024-09-19 17:37:43,722 - ERROR - Login failed: input(): lost sys.stdout
+2024-09-19 17:37:51,207 - ERROR - Login failed: Unable to log in with provided credentials.
+2024-09-19 17:37:55,822 - ERROR - Error loading session from pickle file: module 'robin_stocks.robinhood.authentication' has no attribute 'set_oauth_token'
+2024-09-19 17:37:57,645 - ERROR - Login failed: Unable to log in with provided credentials.
+2024-09-19 17:38:52,108 - ERROR - Error loading session from pickle file: Ran out of input
+2024-09-19 17:38:52,109 - ERROR - Login failed: input(): lost sys.stdout
+2024-09-19 17:38:55,554 - ERROR - Error loading session from pickle file: Ran out of input
+2024-09-19 17:38:55,554 - ERROR - Login failed: input(): lost sys.stdout
+2024-09-19 17:39:03,166 - ERROR - Login failed: input(): lost sys.stdout
+2024-09-19 17:39:06,740 - ERROR - Login failed: input(): lost sys.stdout
+2024-09-19 17:39:13,885 - ERROR - Login failed: input(): lost sys.stdout
+2024-09-19 17:40:05,486 - ERROR - Login failed: Error: Trouble connecting to robinhood API. Check internet connection.
+2024-09-23 08:26:40,391 - INFO - Starting bot scheduler...
+2024-09-23 08:27:54,760 - INFO - Login successful!
+2024-09-23 12:49:22,301 - INFO - Login successful!
+2024-09-23 12:52:51,034 - INFO - Login successful!
+2024-09-23 12:54:20,584 - INFO - Login successful!
+2024-09-23 12:56:40,429 - INFO - Login successful!
+2024-09-24 11:48:41,064 - INFO - Login successful!
+2024-09-24 14:50:07,628 - INFO - Login successful!
+2024-09-25 10:37:21,759 - INFO - Login successful!
+2024-09-25 10:58:22,124 - INFO - Login successful!
+2024-09-25 11:28:33,398 - INFO - Login successful!
+2024-09-25 13:41:46,397 - INFO - Login successful!
+2024-09-26 10:18:35,042 - INFO - Login successful!
+2024-09-26 10:19:44,245 - INFO - Login successful!
+2024-09-26 10:25:38,505 - INFO - Login successful!
+2024-09-26 13:57:35,083 - INFO - Login successful!
+2024-09-27 10:42:12,143 - INFO - Login successful!
+2024-09-27 13:09:48,783 - INFO - Login successful!
+2024-09-27 14:09:13,872 - INFO - Login successful!
+2024-09-28 09:43:48,900 - INFO - Login successful!
+2024-09-29 20:08:43,107 - INFO - Login successful!
+2024-09-29 20:08:43,109 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_session'
+2024-09-29 20:18:43,715 - INFO - Login successful!
+2024-09-29 20:18:43,719 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_session'
+2024-09-29 20:21:31,050 - INFO - Login successful!
+2024-09-29 20:24:04,294 - INFO - Login successful!
+2024-09-29 20:26:09,672 - INFO - Login successful!
+2024-09-29 20:27:08,805 - INFO - Login successful!
+2024-09-29 20:28:22,090 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_session'
+2024-09-29 20:30:03,291 - INFO - Login successful!
+2024-09-29 20:31:08,671 - INFO - Login successful!
+2024-09-29 20:37:58,910 - INFO - Login successful!
+2024-09-29 20:37:58,912 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_state'
+2024-09-29 21:57:28,353 - ERROR - Login failed: 'detail'
+2024-09-29 21:57:44,590 - INFO - Login successful!
+2024-09-29 21:57:44,591 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_state'
+2024-09-30 09:26:47,759 - INFO - Login successful!
+2024-09-30 09:26:47,761 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_state'
+2024-09-30 09:46:27,249 - INFO - Login successful!
+2024-09-30 09:46:27,252 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_state'
+2024-09-30 11:45:13,532 - INFO - Login successful!
+2024-09-30 11:45:13,535 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_state'
+2024-09-30 12:15:01,777 - INFO - Login successful!
+2024-09-30 12:15:01,780 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_state'
+2024-09-30 14:19:23,844 - ERROR - Login failed: 'detail'
+2024-09-30 14:19:40,699 - INFO - Login successful!
+2024-09-30 14:19:40,700 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_state'
+2024-09-30 16:59:10,226 - INFO - Login successful!
+2024-09-30 16:59:10,230 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_state'
+2024-10-01 11:02:35,612 - INFO - Login successful!
+2024-10-01 11:02:35,614 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_state'
+2024-10-01 12:17:51,775 - INFO - Login successful!
+2024-10-01 12:17:51,779 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_state'
+2024-10-01 13:40:24,780 - INFO - Login successful!
+2024-10-01 13:40:24,781 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_state'
+2024-10-01 17:16:11,602 - INFO - Login successful!
+2024-10-01 17:16:11,604 - ERROR - Login failed: module 'robin_stocks.robinhood.authentication' has no attribute 'get_login_state'
