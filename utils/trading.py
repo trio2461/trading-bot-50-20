@@ -335,6 +335,7 @@ def close_trade(symbol, quantity, sale_price, sale_type=None):
     except Exception as e:
         print(f"Exception occurred while closing trade: {e}")
 
+
 def add_sale_to_global_data(symbol, profit, sale_price, sale_type=None):
     if 'sales' not in global_account_data:
         global_account_data['sales'] = []

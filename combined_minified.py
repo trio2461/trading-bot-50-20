@@ -951,27 +951,11 @@ import pandas as pd
 from dotenv import load_dotenv  
 from utils.settings import SIMULATED, SIMULATED_PORTFOLIO_SIZE  
 load_dotenv()
+load_dotenv()
 logging.basicConfig(filename='robinhood_login.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
 PICKLE_NAME = 'robinhood_session.pkl'
-def save_session(session_data):
-    """Save the session data to a pickle file."""
-    with open(PICKLE_NAME, 'wb') as f:
-        pickle.dump(session_data, f)
-    print(f"Session data saved to {PICKLE_NAME}.")
-def load_session():
-    """Load the session data from a pickle file."""
-    if os.path.exists(PICKLE_NAME):
-        with open(PICKLE_NAME, 'rb') as f:
-            session_data = pickle.load(f)
-            r.authentication.set_login_state(session_data)
-            print(f"Session data loaded from {PICKLE_NAME}.")
-            return True
-    return False
 def login_to_robinhood():
-    if load_session():
-        print("Session loaded. No need to log in again.")
-        return
     username = os.getenv('ROBINHOOD_USERNAME')
     password = os.getenv('ROBINHOOD_PASSWORD')
     if not username or not password:
@@ -985,12 +969,12 @@ def login_to_robinhood():
             username=username,
             password=password,
             mfa_code=mfa_code if mfa_code else None,
-            store_session=False  
+            store_session=True,  
+            pickle_name=PICKLE_NAME  
         )
         if 'access_token' in login_data:
             print("Login successful!")
             logging.info("Login successful!")
-            save_session(r.authentication.get_login_state())
             return login_data
         else:
             print(f"Login failed: {login_data}")
