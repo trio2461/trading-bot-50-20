@@ -35,9 +35,11 @@ def login_to_robinhood():
 
     try:
         print(f"Attempting to log in with Username: {username}")
-        
-        # Prompt for MFA code, but allow skipping by pressing Enter
-        mfa_code = input("Enter MFA code (if needed, otherwise press Enter to skip): ").strip()
+
+        # Automatically press Enter if MFA is not needed
+        mfa_code = os.getenv('ROBINHOOD_MFA', '')  # Fetch from env or default to an empty string
+        if not mfa_code:
+            print("No MFA code found in environment variables. Proceeding without MFA.")
 
         # Log in to Robinhood using session management
         login_data = r.authentication.login(
