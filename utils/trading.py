@@ -7,8 +7,26 @@ from utils.send_message import send_text_message
 from utils.trade_state import TradeState,calculate_current_risk, get_open_trades
 from termcolor import colored
 from datetime import datetime
+import json
+import os
+import pandas as pd
+import logging
 
-def is_market_open():
+def is_market_open(symbol=None):
+    # Load crypto symbols from CSV
+    try:
+        crypto_df = pd.read_csv('crypto_symbols.csv')
+        crypto_symbols = [sym.replace('-USD', '') for sym in crypto_df['Symbol'].tolist()]
+    except Exception as e:
+        # Fallback to basic list if file can't be read
+        crypto_symbols = ['BTC', 'ETH', 'DOGE', 'SHIB', 'SOL', 'XRP', 'ADA']
+        logging.error(f"Failed to read crypto symbols, using fallback list: {e}")
+
+    # Crypto markets are always open
+    if symbol and symbol in crypto_symbols:
+        return True
+        
+    # Stock market hours
     from datetime import datetime, time
     now = datetime.now().time()
     market_open = time(9, 30)
@@ -94,22 +112,36 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
     if trade['Stock'] in positions:
         print(f"\nTrade for {trade['Stock']} skipped because it's already in the portfolio.")
         return False
+
     new_risk_percent = (trade['Risk Dollar'] / portfolio_size) * 100
     total_risk_after_trade = current_risk_percent + new_risk_percent
+    
     if total_risk_after_trade > (MAX_DAILY_LOSS * 100):
         print(f"Trade for {trade['Stock']} skipped due to exceeding max risk limits.")
         return False
-    print(colored(f"Executing fractional trade for: {trade['Stock']}, Simulated={simulated}, Amount: ${trade['Trade Amount']:.2f}", 'green'))
+
+    print(colored(f"Executing trade for: {trade['Stock']}, Simulated={simulated}, Amount: ${trade['Trade Amount']:.2f}", 'green'))
+    
     if is_market_open() and not simulated:
         try:
-            order_result = r.orders.order_buy_fractional_by_price(
-                symbol=trade['Stock'],
-                amountInDollars=trade['Trade Amount'],
-                timeInForce='gfd',
-                extendedHours=False,  
-                jsonify=True
-            )
-            print(f"Order result: {order_result}")  
+            # Determine if this is a crypto symbol
+            is_crypto = trade['Stock'] in ['BTC', 'ETH', 'DOGE', 'SHIB', 'SOL', 'XRP', 'ADA']  # Add more as needed
+            
+            if is_crypto:
+                order_result = r.orders.order_buy_crypto_by_price(
+                    symbol=trade['Stock'],
+                    amountInDollars=trade['Trade Amount']
+                )
+            else:
+                order_result = r.orders.order_buy_fractional_by_price(
+                    symbol=trade['Stock'],
+                    amountInDollars=trade['Trade Amount'],
+                    timeInForce='gfd',
+                    extendedHours=False
+                )
+
+            print(f"Order result: {order_result}")
+            
             if isinstance(order_result, dict):
                 order_id = order_result.get('id')
                 if order_id:
@@ -118,13 +150,20 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
                         trade['Trade Made'] = True
                         trade['Order Status'] = order_status
                         trade['Order ID'] = order_id
-                        # Save the purchase date to global_account_data
+                        trade['Type'] = 'crypto' if is_crypto else 'stock'
+                        
+                        # Save trade data
+                        save_trade_data(trade)
+                        
+                        # Update global account data
                         global_account_data['positions'][trade['Stock']] = {
                             'name': trade['Stock'],
                             'quantity': trade['Shares to Purchase'],
                             'price': trade['Share Price'],
-                            'purchase_date': datetime.now().strftime("%Y-%m-%d")  # Store the current date
+                            'type': 'crypto' if is_crypto else 'stock',
+                            'purchase_date': datetime.now().strftime("%Y-%m-%d")
                         }
+                        
                         print(f"Trade executed for {trade['Stock']}. Order ID: {order_id}")
                         return True
                     else:
@@ -144,6 +183,8 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
         trade['Trade Made'] = True
         trade['Order Status'] = "Simulated"
         trade['Order ID'] = "SIM12345"
+        trade['Type'] = 'crypto' if trade['Stock'] in ['BTC', 'ETH', 'DOGE', 'SHIB', 'SOL', 'XRP', 'ADA'] else 'stock'
+        save_trade_data(trade)
         return True
 
 
@@ -183,18 +224,73 @@ def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_tr
     send_text_message(summary_message, phone_number=PHONE_NUMBER)
 
 
-def check_open_positions_sell_points():
-    open_positions = r.account.build_holdings()  # Get open positions
-    for symbol, data in open_positions.items():
-        current_price = float(data['price'])  # Current market price
-        quantity = float(data['quantity'])
-        purchase_price = float(data['average_buy_price'])  # Initial purchase price
+def verify_position_closed(symbol, position_type='stock'):
+    """Verify that a position has been closed by checking current positions"""
+    positions = get_positions()
+    if symbol not in positions:
+        if position_type == 'crypto':
+            print(colored(f"✓ Verified: Crypto position {symbol} has been closed successfully", 'green'))
+        else:
+            print(colored(f"✓ Verified: Stock position {symbol} has been closed successfully", 'green'))
+        return True
+    else:
+        print(colored(f"⚠ Warning: Position {symbol} is still open", 'red'))
+        return False
 
-        historical_data = fetch_historical_data(symbol)
-        atr = calculate_atr(historical_data)  # Calculate ATR
+def check_open_positions_sell_points():
+    open_positions = get_positions()  # This now includes both stocks and crypto
+    current_date = datetime.now()
+    closed_positions = []
+    
+    for symbol, data in open_positions.items():
+        current_price = float(data['price'])
+        quantity = float(data['quantity'])
+        purchase_price = float(data['average_buy_price'])
+        position_type = data.get('type', 'stock')
+        purchase_date = datetime.strptime(data.get('purchase_date', current_date.strftime("%Y-%m-%d")), "%Y-%m-%d")
+        days_held = (current_date - purchase_date).days
+
+        print(f"\nAnalyzing position: {symbol}")
+        print(f"Days held: {days_held}")
+        print(f"Position type: {position_type}")
+        print(f"Current price: ${current_price:.2f}")
+        print(f"Purchase price: ${purchase_price:.2f}")
+        
+        # Check 14-day expiration for all positions
+        if days_held >= 14:
+            print(colored(f"Position {symbol} has exceeded 14-day hold period. Selling position...", 'yellow'))
+            if position_type == 'crypto':
+                order = order_crypto_sell_market(symbol, quantity)
+            else:
+                order = order_sell_market(symbol, quantity)
+                
+            if order:
+                print(colored(f"Sell order placed for {symbol}", 'green'))
+                closed = verify_position_closed(symbol, position_type)
+                if closed:
+                    closed_positions.append({
+                        'symbol': symbol,
+                        'type': position_type,
+                        'reason': '14-day expiration',
+                        'days_held': days_held,
+                        'profit_loss': (current_price - purchase_price) * quantity
+                    })
+            continue
+
+        # Get appropriate historical data based on position type
+        if position_type == 'crypto':
+            historical_data = fetch_crypto_historical_data(symbol)
+        else:
+            historical_data = fetch_historical_data(symbol)
+
+        if not historical_data:
+            print(f"Could not fetch historical data for {symbol}")
+            continue
+
+        atr = calculate_atr(historical_data)
         atr_percent = (atr / purchase_price) * 100
 
-        # Determine which ATR category (3%, 4%, 5%) the stock falls under
+        # Determine ATR multiple
         if atr_percent < 3.5:
             atr_multiple = 3
         elif atr_percent < 4.5:
@@ -202,11 +298,83 @@ def check_open_positions_sell_points():
         else:
             atr_multiple = 5
 
-        sell_point = purchase_price + (2 * (atr_multiple / 100) * purchase_price)  # 2 * ATR above purchase price
+        sell_point = purchase_price + (2 * (atr_multiple / 100) * purchase_price)
 
         if current_price >= sell_point:
-            print(f"Selling {symbol} at {current_price} (Sell point: {sell_point})")
-            order = order_sell_market(symbol, quantity)
-            print(f"Sell order placed for {symbol}: {order}")
+            print(colored(f"Selling {symbol} at {current_price} (Sell point: {sell_point})", 'yellow'))
+            if position_type == 'crypto':
+                order = order_crypto_sell_market(symbol, quantity)
+            else:
+                order = order_sell_market(symbol, quantity)
+                
+            if order:
+                print(colored(f"Sell order placed for {symbol}", 'green'))
+                closed = verify_position_closed(symbol, position_type)
+                if closed:
+                    closed_positions.append({
+                        'symbol': symbol,
+                        'type': position_type,
+                        'reason': 'ATR target reached',
+                        'days_held': days_held,
+                        'profit_loss': (current_price - purchase_price) * quantity
+                    })
         else:
-            print(f"{symbol} has not hit the sell point yet. Current price: {current_price}, Sell point: {sell_point}")
+            print(f"{symbol} has not hit the sell point yet. Current price: ${current_price:.2f}, Sell point: ${sell_point:.2f}")
+
+    # Print summary of closed positions
+    if closed_positions:
+        print("\n=== Closed Positions Summary ===")
+        for pos in closed_positions:
+            profit_loss_color = 'green' if pos['profit_loss'] > 0 else 'red'
+            print(colored(f"\n{pos['symbol']} ({pos['type']})", 'cyan'))
+            print(f"Reason: {pos['reason']}")
+            print(f"Days held: {pos['days_held']}")
+            print(colored(f"Profit/Loss: ${pos['profit_loss']:.2f}", profit_loss_color))
+    else:
+        print("\nNo positions were closed in this check.")
+
+def save_trade_data(trade):
+    """Save trade data to a JSON file for persistence"""
+    
+    # Create trades directory if it doesn't exist
+    trades_dir = 'trades'
+    if not os.path.exists(trades_dir):
+        os.makedirs(trades_dir)
+    
+    # Create files for different types of data
+    daily_file = f"trades/{datetime.now().strftime('%Y-%m-%d')}_trades.json"
+    history_file = "trades/trade_history.json"
+    
+    # Add timestamp to trade data
+    trade['timestamp'] = datetime.now().isoformat()
+    
+    # Load existing daily trades
+    daily_trades = []
+    if os.path.exists(daily_file):
+        with open(daily_file, 'r') as f:
+            try:
+                daily_trades = json.load(f)
+            except json.JSONDecodeError:
+                daily_trades = []
+    
+    # Add new trade
+    daily_trades.append(trade)
+    
+    # Save daily trades
+    with open(daily_file, 'w') as f:
+        json.dump(daily_trades, f, indent=4)
+    
+    # Load and update trade history
+    history = []
+    if os.path.exists(history_file):
+        with open(history_file, 'r') as f:
+            try:
+                history = json.load(f)
+            except json.JSONDecodeError:
+                history = []
+    
+    history.append(trade)
+    
+    # Save updated history
+    with open(history_file, 'w') as f:
+        json.dump(history, f, indent=4)

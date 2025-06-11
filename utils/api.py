@@ -16,9 +16,34 @@ def login_to_robinhood():
 
 
 def get_positions():
-    positions = r.account.build_holdings()
-    print(f"Current Positions: {positions}")
-    return positions
+    # Get stock positions
+    stock_positions = r.account.build_holdings()
+    
+    # Get crypto positions
+    try:
+        crypto_positions = r.crypto.get_crypto_positions()
+        # Convert crypto positions to same format as stocks
+        for position in crypto_positions:
+            if float(position['quantity']) > 0:
+                symbol = position['currency']['code']
+                quantity = float(position['quantity'])
+                price = float(r.crypto.get_crypto_quote(symbol)['mark_price'])
+                average_buy_price = float(position['cost_bases'][0]['direct_cost_basis']) / quantity
+                stock_positions[symbol] = {
+                    'name': symbol,
+                    'quantity': str(quantity),
+                    'price': str(price),
+                    'average_buy_price': str(average_buy_price),
+                    'equity': str(quantity * price),
+                    'percent_change': str(((price - average_buy_price) / average_buy_price) * 100),
+                    'equity_change': str((price - average_buy_price) * quantity),
+                    'type': 'crypto'
+                }
+    except Exception as e:
+        print(f"Error fetching crypto positions: {e}")
+
+    print(f"Current Positions: {stock_positions}")
+    return stock_positions
 
 def order_buy_market(symbol, quantity):
     try:
@@ -39,6 +64,29 @@ def order_sell_market(symbol, quantity):
         return None
 
 
+def order_crypto_buy_market(symbol, quantity):
+    try:
+        order = r.orders.order_buy_crypto_by_quantity(
+            symbol=symbol,
+            quantity=quantity
+        )
+        return order.get('id')
+    except Exception as e:
+        print(f"Error placing crypto market order: {e}")
+        return None
+
+def order_crypto_sell_market(symbol, quantity):
+    try:
+        order = r.orders.order_sell_crypto_by_quantity(
+            symbol=symbol,
+            quantity=quantity
+        )
+        return order
+    except Exception as e:
+        print(f"Error placing crypto market sell order: {e}")
+        return None
+
+
 def fetch_historical_data(stock, interval='day', span='3month'):
     try:
         sanitized_stock = stock.replace('-', '')
@@ -47,6 +95,15 @@ def fetch_historical_data(stock, interval='day', span='3month'):
         return data
     except (r.exceptions.APIError, r.exceptions.RequestError, r.exceptions.NotFound) as e:
         logging.error(f"Failed to fetch data for {stock}: {e}")
+        return None
+
+def fetch_crypto_historical_data(symbol, interval='day', span='3month'):
+    try:
+        with contextlib.redirect_stdout(None):
+            data = r.crypto.get_crypto_historicals(symbol, interval=interval, span=span)
+        return data
+    except Exception as e:
+        logging.error(f"Failed to fetch crypto data for {symbol}: {e}")
         return None
 
 def get_top_movers(direction='up'):
@@ -87,4 +144,3 @@ def sanitize_ticker_symbols(df):
     df[column_name] = df[column_name].str.upper()  # Convert to uppercase for consistency
     return df
 
- 

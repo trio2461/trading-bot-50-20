@@ -4,6 +4,7 @@ from datetime import datetime
 from utils.analysis import calculate_atr
 from utils.api import fetch_historical_data
 from utils.account_data import global_account_data
+import json
 
 
 class TradeState:
@@ -29,15 +30,38 @@ class TradeState:
 
 # trade_state.py
 def calculate_current_risk(open_trades, portfolio_size):
+    """Calculate current risk based on original risk amounts of open trades"""
     total_risk_percent = 0.0
     total_risk_dollar = 0.0
     
+    # Load trade history to get original risk amounts
+    trade_history_file = "trades/trade_history.json"
+    try:
+        with open(trade_history_file, 'r') as f:
+            trade_history = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        trade_history = []
+    
     for trade in open_trades:
-        current_price = float(global_account_data['positions'][trade.symbol]['price'])
-        atr = calculate_atr(fetch_historical_data(trade.symbol))
-        risk_per_share = 2 * atr
-        position_risk_dollar = trade.quantity * risk_per_share
-        position_risk_percent = (position_risk_dollar / portfolio_size) * 100
+        # Find the original trade entry in history
+        original_trade = None
+        for hist_trade in trade_history:
+            if hist_trade['Stock'] == trade.symbol and hist_trade['Trade Made']:
+                original_trade = hist_trade
+                break
+        
+        if original_trade:
+            # Use the original risk amounts
+            position_risk_dollar = original_trade['Risk Dollar']
+            position_risk_percent = original_trade['Risk Percent']
+        else:
+            # Fallback to calculating current risk if no history found
+            current_price = float(global_account_data['positions'][trade.symbol]['price'])
+            atr = calculate_atr(fetch_historical_data(trade.symbol))
+            risk_per_share = 2 * atr
+            position_risk_dollar = trade.quantity * risk_per_share
+            position_risk_percent = (position_risk_dollar / portfolio_size) * 100
+            print(f"Warning: Using current risk calculation for {trade.symbol} as no history found")
         
         total_risk_percent += position_risk_percent
         total_risk_dollar += position_risk_dollar

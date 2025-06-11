@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 import robin_stocks.robinhood as r
 from utils.account_data import global_account_data, update_global_account_data
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -52,10 +53,17 @@ def get_open_orders():
     else:
         print("No open orders found.")
 
-
+def get_crypto_positions():
+    try:
+        crypto_positions = r.crypto.get_crypto_positions()
+        print("\nCrypto Positions:")
+        print(json.dumps(crypto_positions, indent=4))
+        return crypto_positions
+    except Exception as e:
+        print(f"Error getting crypto positions: {e}")
+        return None
 
 def test_print_global_account_data():
-    import json
     print("Account Info:")
     print(json.dumps(global_account_data['account_info'], indent=4))
     
@@ -68,3 +76,7 @@ def test_print_global_account_data():
 if __name__ == "__main__":
     login_to_robinhood()
     test_print_global_account_data()
+    get_account_info()
+    get_portfolio_info()
+    get_positions()  # This now includes both stocks and crypto
+    get_crypto_positions()  # This will show raw crypto data
