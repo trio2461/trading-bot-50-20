@@ -24,11 +24,18 @@ def get_positions():
         crypto_positions = r.crypto.get_crypto_positions()
         # Convert crypto positions to same format as stocks
         for position in crypto_positions:
-            if float(position['quantity']) > 0:
+            # Only include positions with non-zero quantity
+            if position['quantity'] != "0.000000000000000000":
                 symbol = position['currency']['code']
                 quantity = float(position['quantity'])
                 price = float(r.crypto.get_crypto_quote(symbol)['mark_price'])
-                average_buy_price = float(position['cost_bases'][0]['direct_cost_basis']) / quantity
+                # Get cost basis if available, otherwise use current price
+                try:
+                    cost_basis = float(position['cost_bases'][0]['direct_cost_basis'])
+                    average_buy_price = cost_basis / quantity if quantity > 0 else price
+                except (IndexError, KeyError, ZeroDivisionError):
+                    average_buy_price = price
+                
                 stock_positions[symbol] = {
                     'name': symbol,
                     'quantity': str(quantity),
@@ -41,7 +48,7 @@ def get_positions():
                 }
     except Exception as e:
         print(f"Error fetching crypto positions: {e}")
-
+    
     print(f"Current Positions: {stock_positions}")
     return stock_positions
 

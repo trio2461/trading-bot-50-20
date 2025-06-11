@@ -179,14 +179,42 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
             print(f"Exception occurred while executing trade: {e}")
             return False
     else:
-        print(f"Market is closed or simulated mode. Trade for {trade['Stock']} will be executed when market opens.")
-        trade['Trade Made'] = False
-        trade['Order Status'] = "Pending Market Open"
-        trade['Order ID'] = None
-        trade['Type'] = 'crypto' if trade['Stock'] in ['BTC', 'ETH', 'DOGE', 'SHIB', 'SOL', 'XRP', 'ADA'] else 'stock'
+        print(f"Simulated trade for {trade['Stock']}")
+        trade['Trade Made'] = True
+        trade['Order Status'] = "Simulated"
+        trade['Order ID'] = f"SIM_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        trade['Type'] = 'crypto' if trade['Stock'] in get_crypto_symbols() else 'stock'
+        trade['Simulation_Details'] = {
+            'Date': datetime.now().strftime('%Y-%m-%d'),
+            'Time': datetime.now().strftime('%H:%M:%S'),
+            'Portfolio_Size': SIMULATED_PORTFOLIO_SIZE,
+            'Market_Hours': is_market_open(),
+            'ATR_Details': {
+                'ATR': trade['ATR'],
+                'ATR_Percent': trade['ATR Percent'],
+                'ATR_Multiple': trade['ATR * 2']
+            },
+            'Risk_Details': {
+                'Risk_Dollar': trade['Risk Dollar'],
+                'Risk_Percent': trade['Risk Percent'],
+                'Portfolio_Risk_After': total_risk_after_trade
+            }
+        }
+        
+        # Save simulated trade data
         save_trade_data(trade)
-        return False
-
+        
+        # Update global account data for simulation
+        global_account_data['positions'][trade['Stock']] = {
+            'name': trade['Stock'],
+            'quantity': trade['Shares to Purchase'],
+            'price': trade['Share Price'],
+            'type': trade['Type'],
+            'purchase_date': datetime.now().strftime("%Y-%m-%d"),
+            'created_at': datetime.now().isoformat()
+        }
+        
+        return True
 
 # Fixing the summary report to correctly reflect current risk
 def send_trade_summary(top_trades, portfolio_size, current_risk_percent, open_trades, simulated=SIMULATED):
@@ -362,21 +390,31 @@ def check_open_positions_sell_points():
         print("\nNo positions were closed in this check.")
 
 def save_trade_data(trade):
-    """Save trade data to a JSON file for persistence"""
+    """Save trade data to a JSON file with enhanced simulation tracking"""
     
-    # Create trades directory if it doesn't exist
+    # Create directory structure
     trades_dir = 'trades'
+    simulation_dir = os.path.join(trades_dir, 'simulated')
     if not os.path.exists(trades_dir):
         os.makedirs(trades_dir)
+    if not os.path.exists(simulation_dir):
+        os.makedirs(simulation_dir)
     
-    # Create files for different types of data
-    daily_file = f"trades/{datetime.now().strftime('%Y-%m-%d')}_trades.json"
-    history_file = "trades/trade_history.json"
+    # Determine file paths based on trade type
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    is_simulated = trade.get('Order Status') == 'Simulated'
     
-    # Add timestamp to trade data
+    if is_simulated:
+        daily_file = f"trades/simulated/{current_date}_simulated_trades.json"
+        summary_file = "trades/simulated/simulation_summary.json"
+    else:
+        daily_file = f"trades/{current_date}_trades.json"
+        summary_file = "trades/trade_history.json"
+    
+    # Add timestamp and additional metadata
     trade['timestamp'] = datetime.now().isoformat()
     
-    # Load existing daily trades
+    # Load and update daily trades
     daily_trades = []
     if os.path.exists(daily_file):
         with open(daily_file, 'r') as f:
@@ -385,17 +423,16 @@ def save_trade_data(trade):
             except json.JSONDecodeError:
                 daily_trades = []
     
-    # Add new trade
     daily_trades.append(trade)
     
-    # Save daily trades
+    # Save daily trades with nice formatting
     with open(daily_file, 'w') as f:
-        json.dump(daily_trades, f, indent=4)
+        json.dump(daily_trades, f, indent=4, sort_keys=True)
     
     # Load and update trade history
     history = []
-    if os.path.exists(history_file):
-        with open(history_file, 'r') as f:
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
             try:
                 history = json.load(f)
             except json.JSONDecodeError:
@@ -403,6 +440,137 @@ def save_trade_data(trade):
     
     history.append(trade)
     
-    # Save updated history
-    with open(history_file, 'w') as f:
-        json.dump(history, f, indent=4)
+    # Save updated history with nice formatting
+    with open(summary_file, 'w') as f:
+        json.dump(history, f, indent=4, sort_keys=True)
+
+def get_crypto_symbols():
+    """Get list of crypto symbols from CSV file"""
+    try:
+        crypto_df = pd.read_csv('crypto_symbols.csv')
+        return [sym.split('-')[0] for sym in crypto_df['Symbol'].tolist()]
+    except Exception as e:
+        logging.error(f"Failed to read crypto symbols: {e}")
+        return ['BTC', 'ETH', 'DOGE', 'SHIB', 'SOL', 'XRP', 'ADA']
+
+def check_positions_against_atr(global_account_data):
+    """Check open positions against ATR and manage them accordingly"""
+    positions = global_account_data.get('positions', {})
+    for symbol, position_data in positions.items():
+        historicals = fetch_historical_data(symbol)
+        if historicals:
+            atr = calculate_atr(historicals)
+            current_price = float(position_data.get('price', 0))
+            if current_price > 0:
+                atr_percent = (atr / current_price) * 100
+                print(f"Checking {symbol} - ATR%: {atr_percent:.2f}%")
+
+def order_crypto_sell_market(symbol, quantity):
+    """Place a market sell order for crypto"""
+    try:
+        order = r.orders.order_sell_crypto_by_quantity(
+            symbol=symbol,
+            quantity=quantity
+        )
+        return order
+    except Exception as e:
+        print(f"Error selling crypto {symbol}: {e}")
+        return None
+
+def fetch_crypto_historical_data(symbol):
+    """Fetch historical data for crypto"""
+    try:
+        historicals = r.crypto.get_crypto_historicals(
+            symbol,
+            interval='day',
+            span='year'
+        )
+        return historicals
+    except Exception as e:
+        print(f"Error fetching crypto historical data for {symbol}: {e}")
+        return None
+
+def get_stock_orders_and_match_open_positions(open_position_symbols):
+    """Get orders and match them with open positions"""
+    try:
+        orders = r.orders.get_all_stock_orders()
+        matched_orders = {}
+        
+        for symbol in open_position_symbols:
+            # Find the most recent buy order for this symbol
+            matching_orders = [
+                order for order in orders 
+                if order['state'] == 'filled' 
+                and order['side'] == 'buy'
+                and order['symbol'] == symbol
+            ]
+            
+            if matching_orders:
+                # Sort by date and get most recent
+                matching_orders.sort(
+                    key=lambda x: datetime.strptime(x['created_at'], "%Y-%m-%dT%H:%M:%S.%fZ"), 
+                    reverse=True
+                )
+                matched_orders[symbol] = matching_orders[0]['created_at']
+        
+        return matched_orders
+    except Exception as e:
+        print(f"Error matching orders with positions: {e}")
+        return {}
+
+def close_trades_open_for_ten_days(positions):
+    """Close any trades that have been open for more than 10 days"""
+    current_date = datetime.now()
+    closed_positions = []
+    
+    for symbol, position_data in positions.items():
+        purchase_date_str = position_data.get('purchase_date', current_date.strftime("%Y-%m-%d"))
+        purchase_date = datetime.strptime(purchase_date_str, "%Y-%m-%d")
+        days_held = (current_date - purchase_date).days
+        
+        if days_held >= 10:
+            print(f"Position {symbol} has been open for {days_held} days. Attempting to close...")
+            quantity = float(position_data.get('quantity', 0))
+            position_type = position_data.get('type', 'stock')
+            
+            try:
+                if position_type == 'crypto':
+                    order = order_crypto_sell_market(symbol, quantity)
+                else:
+                    order = r.orders.order_sell_fractional_by_quantity(
+                        symbol=symbol,
+                        quantity=quantity,
+                        timeInForce='gfd',
+                        extendedHours=False
+                    )
+                
+                if order:
+                    print(f"Successfully placed sell order for {symbol}")
+                    closed = verify_position_closed(symbol, position_type)
+                    if closed:
+                        closed_positions.append({
+                            'symbol': symbol,
+                            'type': position_type,
+                            'days_held': days_held,
+                            'quantity': quantity,
+                            'close_date': current_date.strftime("%Y-%m-%d"),
+                            'reason': '10-day expiration'
+                        })
+                        
+                        # Save the closed position data in simulated mode
+                        if SIMULATED:
+                            save_trade_data({
+                                'Stock': symbol,
+                                'Type': position_type,
+                                'Trade Made': True,
+                                'Order Status': 'Simulated Close',
+                                'Close Reason': '10-day expiration',
+                                'Days Held': days_held,
+                                'Quantity': quantity,
+                                'Order ID': 'SIM_CLOSE_' + datetime.now().strftime("%Y%m%d%H%M%S")
+                            })
+                            
+            except Exception as e:
+                print(f"Error closing position for {symbol}: {e}")
+    
+    return closed_positions

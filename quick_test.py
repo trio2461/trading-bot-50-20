@@ -9,13 +9,19 @@ import json
 load_dotenv()
 
 def login_to_robinhood():
-    username = os.getenv('ROBINHOOD_USERNAME')
-    password = os.getenv('ROBINHOOD_PASSWORD')
-    
-    if not username or not password:
-        raise Exception("ROBINHOOD_USERNAME or ROBINHOOD_PASSWORD not found in the environment variables.")
-    
-    r.login(username=username, password=password)
+    try:
+        username = os.getenv('ROBINHOOD_USERNAME')
+        password = os.getenv('ROBINHOOD_PASSWORD')
+        
+        if not username or not password:
+            raise Exception("ROBINHOOD_USERNAME or ROBINHOOD_PASSWORD not found in environment variables")
+        
+        login = r.login(username=username, password=password)
+        print("Successfully logged into Robinhood")
+        return login
+    except Exception as e:
+        print(f"Error logging in: {e}")
+        return None
 
 def get_account_info():
     account_info = r.profiles.load_account_profile()
@@ -32,11 +38,15 @@ def get_positions():
     print("Current Positions:")
     print(positions)
 
-def get_open_positions():
-    open_positions = r.account.get_open_stock_positions()
-    print("Open Positions:")
-    print(open_positions)
-
+def get_crypto_positions():
+    try:
+        crypto_positions = r.crypto.get_crypto_positions()
+        print("\nCrypto Positions:")
+        print(json.dumps(crypto_positions, indent=4))
+        return crypto_positions
+    except Exception as e:
+        print(f"Error getting crypto positions: {e}")
+        return None
 
 def get_open_orders():
     open_orders = r.orders.get_all_open_stock_orders()
@@ -53,30 +63,17 @@ def get_open_orders():
     else:
         print("No open orders found.")
 
-def get_crypto_positions():
-    try:
-        crypto_positions = r.crypto.get_crypto_positions()
-        print("\nCrypto Positions:")
-        print(json.dumps(crypto_positions, indent=4))
-        return crypto_positions
-    except Exception as e:
-        print(f"Error getting crypto positions: {e}")
-        return None
-
 def test_print_global_account_data():
-    print("Account Info:")
-    print(json.dumps(global_account_data['account_info'], indent=4))
-    
-    print("\nPortfolio Info:")
-    print(json.dumps(global_account_data['portfolio_info'], indent=4))
-    
-    print("\nPositions:")
-    print(json.dumps(global_account_data['positions'], indent=4))
+    try:
+        print("\nGlobal Account Data:")
+        print("Portfolio Value:", global_account_data.get('portfolio_info', {}).get('equity', 'N/A'))
+        print("Buying Power:", global_account_data.get('account_info', {}).get('buying_power', 'N/A'))
+    except Exception as e:
+        print(f"Error printing global account data: {e}")
 
 if __name__ == "__main__":
-    login_to_robinhood()
-    test_print_global_account_data()
-    get_account_info()
-    get_portfolio_info()
-    get_positions()  # This now includes both stocks and crypto
-    get_crypto_positions()  # This will show raw crypto data
+    print("Starting quick test...")
+    if login_to_robinhood():
+        update_global_account_data()
+        test_print_global_account_data()
+        print("\nQuick test completed successfully")

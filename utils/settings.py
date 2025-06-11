@@ -1,7 +1,7 @@
 # utils/settings.py
 
 # General Settings
-SIMULATED = False  # Set this to False when going live
+SIMULATED = True  # Set this to False when going live
 SIMULATED_PORTFOLIO_SIZE = 20000  # Portfolio size when running in simulated mode
 MAX_DAILY_LOSS = 0.065  # Max daily loss limit as a percentage of the portfolio
 PHONE_NUMBER = '252-571-5303'
@@ -15,4 +15,4 @@ USE_SP500_DATA = True  # Set to True to use S&P 500 data only
 ATR_THRESHOLDS = (3.0, 4.0, 5.0)  # ATR thresholds for classifying ATR percentages
 
 # EXUDE_LIST	= (STEC)  # List of stocks to exude from trading
-# this is 
+# this is
