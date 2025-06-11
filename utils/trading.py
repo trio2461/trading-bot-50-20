@@ -179,13 +179,13 @@ def execute_trade(trade, portfolio_size, current_risk_percent, simulated):
             print(f"Exception occurred while executing trade: {e}")
             return False
     else:
-        print(f"Simulated or out-of-hours trade for {trade['Stock']}.")
-        trade['Trade Made'] = True
-        trade['Order Status'] = "Simulated"
-        trade['Order ID'] = "SIM12345"
+        print(f"Market is closed or simulated mode. Trade for {trade['Stock']} will be executed when market opens.")
+        trade['Trade Made'] = False
+        trade['Order Status'] = "Pending Market Open"
+        trade['Order ID'] = None
         trade['Type'] = 'crypto' if trade['Stock'] in ['BTC', 'ETH', 'DOGE', 'SHIB', 'SOL', 'XRP', 'ADA'] else 'stock'
         save_trade_data(trade)
-        return True
+        return False
 
 
 # Fixing the summary report to correctly reflect current risk
@@ -247,7 +247,34 @@ def check_open_positions_sell_points():
         quantity = float(data['quantity'])
         purchase_price = float(data['average_buy_price'])
         position_type = data.get('type', 'stock')
-        purchase_date = datetime.strptime(data.get('purchase_date', current_date.strftime("%Y-%m-%d")), "%Y-%m-%d")
+
+        # Get the most recent trade for this symbol
+        with open('trades/trade_history.json', 'r') as f:
+            trade_history = json.load(f)
+        
+        # Filter trades for this symbol that were actually filled and made
+        symbol_trades = [t for t in trade_history 
+                        if t.get('Stock') == symbol 
+                        and t.get('Trade Made') 
+                        and t.get('Order Status') == 'filled'
+                        and datetime.strptime(t['timestamp'][:10], "%Y-%m-%d") <= current_date]
+        
+        # Sort by timestamp in descending order
+        symbol_trades.sort(key=lambda x: datetime.strptime(x['timestamp'], 
+                                                         "%Y-%m-%dT%H:%M:%S.%f%z" if 'Z' in x['timestamp'] 
+                                                         else "%Y-%m-%dT%H:%M:%S.%f"), 
+                         reverse=True)
+        
+        # Get the most recent trade's purchase date
+        if symbol_trades:
+            most_recent_trade = symbol_trades[0]
+            purchase_date = datetime.strptime(most_recent_trade['timestamp'][:10], "%Y-%m-%d")
+            print(f"Found most recent trade for {symbol} on {purchase_date.date()}")
+        else:
+            # If no trade history found, use the current position's data
+            purchase_date = current_date
+            print(f"Warning: No trade history found for {symbol}, using current date")
+        
         days_held = (current_date - purchase_date).days
 
         print(f"\nAnalyzing position: {symbol}")
@@ -255,7 +282,7 @@ def check_open_positions_sell_points():
         print(f"Position type: {position_type}")
         print(f"Current price: ${current_price:.2f}")
         print(f"Purchase price: ${purchase_price:.2f}")
-        
+
         # Check 14-day expiration for all positions
         if days_held >= 14:
             print(colored(f"Position {symbol} has exceeded 14-day hold period. Selling position...", 'yellow'))
@@ -287,6 +314,7 @@ def check_open_positions_sell_points():
             print(f"Could not fetch historical data for {symbol}")
             continue
 
+        # Calculate sell point using ATR
         atr = calculate_atr(historical_data)
         atr_percent = (atr / purchase_price) * 100
 
