@@ -20,10 +20,10 @@ def reset_risk_in_global_data():
     global_account_data['risk_percent'] = 0.0
     global_account_data['risk_dollar'] = 0.0
 
-def login_to_robinhood():
-    username = os.getenv('ROBINHOOD_USERNAME')
-    password = os.getenv('ROBINHOOD_PASSWORD')
-    r.login(username=username, password=password)
+# def login_to_robinhood():
+#     username = os.getenv('ROBINHOOD_USERNAME')
+#     password = os.getenv('ROBINHOOD_PASSWORD')
+#     r.login(username=username, password=password)
 
 def update_global_account_data():
     global global_account_data
@@ -41,6 +41,6 @@ def test_print_global_account_data():
     print(global_account_data['positions'])
 
 # Call this function at the start of your script to login and populate the global dictionary
-login_to_robinhood()
-update_global_account_data()
-test_print_global_account_data()
+# login_to_robinhood()
+# update_global_account_data()
+# test_print_global_account_data()

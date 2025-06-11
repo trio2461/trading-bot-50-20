@@ -1,51 +1,68 @@
 import schedule
-import time
 import logging
 import signal
 import sys
-from bot import main
-from utils.trading import check_open_positions_sell_points
+from bot import main  # Ensure this is importing the correct 'main' function
 from datetime import datetime
+import time
+import os
+import subprocess
 
-logging.basicConfig(filename='bot_schedule.log', level=logging.INFO)
+# Setup logging
+logging.basicConfig(filename='bot_schedule.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def market_hours():
-    now = datetime.now().time()
-    market_open = time(9, 30)  # Market open time
-    market_close = time(16, 0)  # Market close time
-    return market_open <= now <= market_close
+# Ensure any previous 'bot_schedule.py' processes are killed
+def kill_existing_process():
+    try:
+        result = subprocess.run(['pgrep', '-f', 'bot_schedule.py'], stdout=subprocess.PIPE)
+        pids = result.stdout.decode().strip().split('\n')
+        for pid in pids:
+            if pid and int(pid) != os.getpid():
+                print(f"Killing existing bot_schedule.py process with PID: {pid}")
+                os.kill(int(pid), signal.SIGTERM)
+                logging.info(f"Killed existing bot_schedule.py process with PID: {pid}")
+    except Exception as e:
+        logging.error(f"Error killing existing process: {e}")
+        print(f"Error killing existing process: {e}")
 
-def run_main():
-    if market_hours():
-        logging.info("Running main every minute during market hours...")
-        main()
-    else:
-        logging.info("Running main every 5 hours during non-market hours...")
+kill_existing_process()
 
-def run_check_positions():
-    if market_hours():
-        logging.info("Checking positions every 5 minutes during market hours...")
-        check_open_positions_sell_points()
-    else:
-        logging.info("Checking positions every 5 hours during non-market hours...")
+# Debugging Helper
+def log_and_print(message):
+    print(message)
+    logging.info(message)
 
+# Signal handling for termination
 def signal_handler(sig, frame):
-    logging.info("Received termination signal. Shutting down...")
+    log_and_print("Received termination signal. Shutting down...")
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-# Schedule tasks for market hours (9:30 AM - 4:00 PM)
-schedule.every(1).minute.do(lambda: run_main() if market_hours() else None)  # Runs main every minute during market hours
-schedule.every(5).minutes.do(lambda: run_check_positions() if market_hours() else None)  # Runs check positions every 5 minutes during market hours
+# Main function to run bot logic
+def run_main():
+    try:
+        log_and_print("Running bot's main() function...")
+        main()  # Call to bot.py's main function
+    except Exception as e:
+        logging.error(f"Error in run_main: {e}")
+        print(f"Error in run_main: {e}")
 
-# Schedule tasks for non-market hours
-schedule.every(5).hours.do(lambda: run_main() if not market_hours() else None)  # Runs main every 5 hours during non-market hours
-schedule.every(5).hours.do(lambda: run_check_positions() if not market_hours() else None)  # Runs check positions every 5 hours during non-market hours
+# Scheduler setup
+log_and_print("Starting bot scheduler...")
 
-logging.info("Scheduler started...")
+# For testing, we are running every 30 seconds (you can switch this to 5 minutes)
+# schedule.every(59).seconds.do(run_main)
 
+# # Uncomment for production
+schedule.every(15).minutes.do(run_main)
+
+# Scheduler loop
 while True:
-    schedule.run_pending()
-    time.sleep(1)
+    try:
+        schedule.run_pending()
+        time.sleep(1)
+    except Exception as e:
+        logging.error(f"Error in the scheduler loop: {e}")
+        print(f"Error in the scheduler loop: {e}")
